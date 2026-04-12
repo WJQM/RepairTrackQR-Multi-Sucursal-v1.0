@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  repairs   Repair[]
+  services      Service[]
+  inventoryItems InventoryItem[]
+  software      Software[]
+  quotations    Quotation[]
+  notifications Notification[]
+  messages      Message[]
+}
+
+model User {
+  id              String         @id @default(uuid())
+  name            String
+  email           String         @unique
+  password        String
+  role            String         @default("admin")
+  status          String         @default("active")
+  phone           String?
+  image           String?
+  branchId        String?
+  createdAt       DateTime       @default(now())
+  branch          Branch?        @relation(fields: [branchId], references: [id])
+  notifications   Notification[]
+  assignedRepairs Repair[]       @relation("AssignedRepairs")
+  repairs         Repair[]       @relation("CreatedRepairs")
+  quotations      Quotation[]
+  messages        Message[]
+}
+
+model Repair {
+  id            String    @id @default(uuid())
+  code          String
+  device        String
+  issue         String
+  status        String    @default("pending")
+  priority      String    @default("media")
+  estimatedCost Float     @default(0)
+  notes         String?
+  qrCode        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  userId        String
+  branchId      String
+  image         String?
+  brand         String?
+  clientEmail   String?
+  clientName    String?
+  clientPhone   String?
+  model         String?
+  accessories   String?
+  technicianId  String?
+  technician    User?     @relation("AssignedRepairs", fields: [technicianId], references: [id])
+  user          User      @relation("CreatedRepairs", fields: [userId], references: [id])
+  branch        Branch    @relation(fields: [branchId], references: [id])
+  messages      Message[]
+
+  @@unique([code, branchId])
+  @@unique([qrCode, branchId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String
+  branchId  String
+  user      User     @relation(fields: [userId], references: [id])
+  branch    Branch   @relation(fields: [branchId], references: [id])
+}
+
+model Service {
+  id        String   @id @default(cuid())
+  name      String
+  price     Float
+  icon      String   @default("🔧")
+  active    Boolean  @default(true)
+  branchId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  branch    Branch   @relation(fields: [branchId], references: [id])
+}
+
+model InventoryItem {
+  id        String       @id @default(cuid())
+  name      String
+  category  String?
+  quantity  Int          @default(0)
+  price     Float        @default(0)
+  minStock  Int          @default(5)
+  active    Boolean      @default(true)
+  branchId  String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  image     String?
+  serials   SerialUnit[]
+  branch    Branch       @relation(fields: [branchId], references: [id])
+}
+
+model SerialUnit {
+  id              String        @id @default(cuid())
+  serialNumber    String        @unique
+  status          String        @default("available")
+  inventoryItemId String
+  soldTo          String?
+  soldAt          DateTime?
+  repairCode      String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  item            InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+}
+
+model Software {
+  id              String   @id @default(cuid())
+  name            String
+  category        String?
+  image           String?
+  active          Boolean  @default(true)
+  branchId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  minRequirements String?
+  recRequirements String?
+  size            String?
+  branch          Branch   @relation(fields: [branchId], references: [id])
+}
+
+model Quotation {
+  id          String   @id @default(cuid())
+  code        String
+  type        String   @default("quotation")
+  clientName  String
+  clientPhone String?
+  items       String
+  total       Float    @default(0)
+  notes       String?
+  branchId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  branch      Branch   @relation(fields: [branchId], references: [id])
+
+  @@unique([code, branchId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  text      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  repairId  String
+  userId    String
+  branchId  String
+  repair    Repair   @relation(fields: [repairId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  branch    Branch   @relation(fields: [branchId], references: [id])
+}
+
+model Settings {
+  id          String   @id @default("global")
+  companyName String   @default("RepairTrackQR")
+  slogan      String   @default("Servicio Técnico Especializado")
+  logo        String?
+  phone       String?
+  email       String?
+  address     String?
+  website     String?
+  updatedAt   DateTime @updatedAt
+}
