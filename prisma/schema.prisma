@@ -22,6 +22,10 @@ model Branch {
   quotations    Quotation[]
   notifications Notification[]
   messages      Message[]
+  certificates  Certificate[]
+  equipment     Equipment[]
+  videogames    Videogame[]
+  consoles      Console[]
 }
 
 model User {
@@ -41,6 +45,7 @@ model User {
   repairs         Repair[]       @relation("CreatedRepairs")
   quotations      Quotation[]
   messages        Message[]
+  certificates    Certificate[]
 }
 
 model Repair {
@@ -72,6 +77,10 @@ model Repair {
 
   @@unique([code, branchId])
   @@unique([qrCode, branchId])
+  @@index([branchId, status])
+  @@index([branchId, createdAt])
+  @@index([technicianId])
+  @@index([clientName])
 }
 
 model Notification {
@@ -85,6 +94,9 @@ model Notification {
   branchId  String
   user      User     @relation(fields: [userId], references: [id])
   branch    Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([userId, read])
+  @@index([branchId, createdAt])
 }
 
 model Service {
@@ -97,6 +109,8 @@ model Service {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   branch    Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([branchId])
 }
 
 model InventoryItem {
@@ -113,6 +127,8 @@ model InventoryItem {
   image     String?
   serials   SerialUnit[]
   branch    Branch       @relation(fields: [branchId], references: [id])
+
+  @@index([branchId])
 }
 
 model SerialUnit {
@@ -141,7 +157,12 @@ model Software {
   minRequirements String?
   recRequirements String?
   size            String?
+  description     String?
+  language        String?
+  rating          String?
   branch          Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([branchId])
 }
 
 model Quotation {
@@ -161,6 +182,7 @@ model Quotation {
   branch      Branch   @relation(fields: [branchId], references: [id])
 
   @@unique([code, branchId])
+  @@index([branchId, type, createdAt])
 }
 
 model Message {
@@ -174,6 +196,64 @@ model Message {
   repair    Repair   @relation(fields: [repairId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
   branch    Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([repairId])
+  @@index([branchId])
+}
+
+model Certificate {
+  id             String   @id @default(cuid())
+  code           String
+  clientName     String
+  computerName   String?
+  windowsEdition String?
+  windowsSerial  String?
+  officeEdition  String?
+  officeSerial   String?
+  date           String
+  technician     String
+  notes          String?
+  branchId       String
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  branch         Branch   @relation(fields: [branchId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
+
+  @@unique([code, branchId])
+  @@index([branchId, createdAt])
+}
+
+model Equipment {
+  id            String   @id @default(cuid())
+  code          String   @default("")
+  name          String
+  type          String   @default("laptop") // laptop | desktop
+  brand         String?
+  model         String?
+  processor     String?
+  ram           String?
+  storage       String?
+  storage2      String?
+  screenSize    String?
+  graphicsCard  String?
+  os            String?
+  cabinet       String?
+  powerSupply   String?
+  motherboard   String?
+  accessories   String?
+  condition     String   @default("disponible") // disponible | vendido | en_reparacion
+  price         Float    @default(0)
+  notes         String?
+  image         String?
+  branchId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  branch        Branch   @relation(fields: [branchId], references: [id])
+
+  @@unique([code, branchId])
+  @@index([branchId])
+  @@index([branchId, type])
 }
 
 model Settings {
@@ -186,4 +266,54 @@ model Settings {
   address     String?
   website     String?
   updatedAt   DateTime @updatedAt
+}
+
+model Videogame {
+  id              String   @id @default(cuid())
+  name            String
+  platform        String?  // PC, Nintendo Switch, Nintendo Wii, PSP, PS Vita... (ampliable)
+  genre           String?  // Acción, RPG, Deportes, etc.
+  description     String?
+  size            String?  // "50 GB", "1.2 GB"
+  minRequirements String?  // Solo aplica a PC — opcional
+  recRequirements String?
+  language        String?  // Español, Inglés, Multi, etc.
+  rating          String?  // PEGI-18, ESRB-M, PEGI-7, etc.
+  image           String?  // JSON array de URLs o URL única
+  active          Boolean  @default(true)
+  branchId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  branch          Branch   @relation(fields: [branchId], references: [id])
+
+  @@index([branchId])
+  @@index([branchId, platform])
+}
+
+model Console {
+  id            String   @id @default(cuid())
+  code          String   @default("")
+  name          String
+  category      String?  // Nintendo, Sony, Microsoft... (ampliable)
+  state         String?  // "nueva" | "usada"
+  brand         String?
+  model         String?
+  color         String?
+  storage       String?
+  generation    String?
+  accessories   String?
+  condition     String   @default("disponible") // disponible | vendida | reservada
+  price         Float    @default(0)
+  notes         String?
+  image         String?
+  active        Boolean  @default(true)
+  branchId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  branch        Branch   @relation(fields: [branchId], references: [id])
+
+  @@unique([code, branchId])
+  @@index([branchId])
+  @@index([branchId, category])
+  @@index([branchId, condition])
 }

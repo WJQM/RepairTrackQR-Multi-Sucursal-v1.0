@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       software: { found: 0, added: 0, skipped: 0 },
       quotations: { found: 0, added: 0, skipped: 0 },
       notifications: { found: 0, added: 0, skipped: 0 },
+      certificates: { found: 0, added: 0, skipped: 0 },
       settings: { found: 0, added: 0, skipped: 0 },
     };
 
@@ -253,6 +254,32 @@ export async function POST(request: Request) {
           userId: r.userId,
           branchId: r.branchId,
           createdAt: new Date(r.createdAt),
+        },
+      })
+    );
+
+    // 10. Certificates
+    await importIfMissing(
+      "certificates",
+      data.certificates || [],
+      (id) => prisma.certificate.findUnique({ where: { id } }),
+      (r: any) => prisma.certificate.create({
+        data: {
+          id: r.id,
+          code: r.code,
+          clientName: r.clientName,
+          computerName: r.computerName || null,
+          windowsEdition: r.windowsEdition || null,
+          windowsSerial: r.windowsSerial || null,
+          officeEdition: r.officeEdition || null,
+          officeSerial: r.officeSerial || null,
+          date: r.date,
+          technician: r.technician || "",
+          notes: r.notes || null,
+          branchId: r.branchId,
+          userId: r.userId,
+          createdAt: new Date(r.createdAt),
+          updatedAt: new Date(r.updatedAt || r.createdAt),
         },
       })
     );

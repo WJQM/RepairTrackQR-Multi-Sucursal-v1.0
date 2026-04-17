@@ -66,6 +66,8 @@ function formatDate(date: Date): string { return date.toLocaleDateString("es-BO"
 export default function DashboardPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({"catalogo": false, "documentos": false, "admin": false, "recepcion": true});
+  const toggleMenu = (key: string) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const [branches, setBranches] = useState<{id:string;name:string}[]>([]);
   const [activeBranch, setActiveBranch] = useState<string>("");
   const [user, setUser] = useState<User | null>(null);
@@ -75,6 +77,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRepairs, setTotalRepairs] = useState(0);
+  const [stats, setStats] = useState<{ total: number; pending: number; inProgress: number; completed: number; revenue: number; byStatus: Record<string, number> }>({ total: 0, pending: 0, inProgress: 0, completed: 0, revenue: 0, byStatus: {} });
+  const PAGE_SIZE = 10;
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [viewImages, setViewImages] = useState<string[]>([]);
@@ -232,7 +239,25 @@ export default function DashboardPage() {
     } catch {}
   };
 
-  const loadRepairs = async (token: string) => { try { const res = await apiFetch("/api/repairs", { }); if (res.ok) setRepairs(await res.json()); } catch {} setLoading(false); };
+  const loadRepairs = async (token: string, page?: number, search?: string, status?: string) => {
+    try {
+      const p = page || currentPage;
+      const s = search !== undefined ? search : searchQuery;
+      const st = status !== undefined ? status : filterStatus;
+      const params = new URLSearchParams({ page: String(p), limit: String(PAGE_SIZE) });
+      if (s) params.set("search", s);
+      if (st && st !== "all") params.set("status", st);
+      const res = await apiFetch(`/api/repairs?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRepairs(data.repairs || []);
+        setTotalPages(data.totalPages || 1);
+        setTotalRepairs(data.total || 0);
+        setCurrentPage(data.page || 1);
+        if (data.stats) setStats(data.stats);
+      }
+    } catch {} setLoading(false);
+  };
   const loadNotifications = async (token: string) => { try { const res = await apiFetch("/api/notifications", { }); if (res.ok) setNotifications(await res.json()); } catch {} };
   const markNotificationRead = async (notifId: string) => { const token = sessionStorage.getItem("token"); if (!token) return; try { await apiFetch("/api/notifications", { method: "PATCH", body: JSON.stringify({ notificationId: notifId }) }); setNotifications(notifications.map((n) => (n.id === notifId ? { ...n, read: true } : n))); } catch {} };
   const markAllRead = async () => { const token = sessionStorage.getItem("token"); if (!token) return; try { await apiFetch("/api/notifications", { method: "PATCH", body: JSON.stringify({ markAll: true }) }); setNotifications(notifications.map((n) => ({ ...n, read: true }))); } catch {} };
@@ -263,7 +288,12 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => { const timer = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(timer); }, []);
-  useEffect(() => { const token = sessionStorage.getItem("token"); if (!token) return; const interval = setInterval(() => { loadNotifications(token); loadRepairs(token); }, 10000); return () => clearInterval(interval); }, []);
+  useEffect(() => { const token = sessionStorage.getItem("token"); if (!token) return; const interval = setInterval(() => { loadNotifications(token); loadRepairs(token); }, 15000); return () => clearInterval(interval); }, [currentPage, searchQuery, filterStatus]);
+  // Debounced search
+  useEffect(() => { const token = sessionStorage.getItem("token"); if (!token) return; const t = setTimeout(() => { setCurrentPage(1); loadRepairs(token, 1, searchQuery, filterStatus); }, 400); return () => clearTimeout(t); }, [searchQuery]);
+  // Filter change
+  useEffect(() => { const token = sessionStorage.getItem("token"); if (!token) return; setCurrentPage(1); loadRepairs(token, 1, searchQuery, filterStatus); }, [filterStatus]);
+  const goToPage = (p: number) => { const token = sessionStorage.getItem("token"); if (!token) return; setCurrentPage(p); loadRepairs(token, p); window.scrollTo({ top: 0, behavior: "smooth" }); };
   useEffect(() => { function handleClick(e: MouseEvent) { if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifications(false); } document.addEventListener("mousedown", handleClick); return () => document.removeEventListener("mousedown", handleClick); }, []);
   useEffect(() => { if (!viewImage) return; const handleKey = (e: KeyboardEvent) => { if (e.key === "ArrowRight") nextImage(); else if (e.key === "ArrowLeft") prevImage(); else if (e.key === "Escape") setViewImage(null); }; document.addEventListener("keydown", handleKey); return () => document.removeEventListener("keydown", handleKey); });
 
@@ -430,45 +460,12 @@ export default function DashboardPage() {
   };
 
   const printQROnly = (code: string, type: "reception" | "delivery") => {
-    const origin = window.location.origin;
-    const qrTargetUrl = type === "reception" ? `${origin}/track/${code}?branchId=${activeBranch}` : `${origin}/delivery/${code}?branchId=${activeBranch}`;
-    const displayCode = type === "reception" ? code : `CE-${code.replace(/^OT-/i, "")}`;
-    const title = type === "reception" ? "QR de Seguimiento" : "QR Comprobante de Entrega";
-    const subtitle = type === "reception" ? "Escanea para rastrear tu equipo" : "Escanea para ver el comprobante de entrega";
-    const color = type === "reception" ? "#3b82f6" : "#10b981";
-    const qrColor = type === "reception" ? "3b82f6" : "10b981";
-    const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrTargetUrl)}&color=000000&bgcolor=ffffff&margin=0`;
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head><title>${title} - ${displayCode}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:30px;background:#fff}
-.card{background:#fff;border-radius:20px;padding:40px;text-align:center;max-width:360px;width:100%}
-.badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:10px;font-weight:700;color:#fff;background:${color};margin-bottom:12px;text-transform:uppercase;letter-spacing:1px}
-h2{font-size:22px;font-weight:800;color:#111;margin-bottom:4px}
-.sub{font-size:12px;color:#888;margin-bottom:24px}
-.qr-frame{padding:16px;border:3px solid ${color};border-radius:16px;display:inline-block;margin-bottom:20px;background:#fff}
-.qr-frame img{display:block;width:200px;height:200px}
-.code{font-family:monospace;font-size:24px;font-weight:800;color:${color};letter-spacing:2px;margin-bottom:4px}
-.order-ref{font-size:11px;color:#999;margin-bottom:6px}
-.url{font-size:9px;color:#bbb;word-break:break-all;margin-bottom:24px}
-.actions{display:flex;gap:10px;justify-content:center}
-button{padding:12px 28px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer}
-.btn-print{background:${color};color:#fff}
-.btn-close{background:#f3f4f6;color:#666}
-@media print{.actions{display:none}.badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
-</head><body><div class="card">
-<span class="badge">${type === "reception" ? "📡 Seguimiento" : "✅ Comprobante"}</span>
-<h2>${title}</h2><p class="sub">${subtitle}</p>
-<div class="qr-frame"><img src="${qrImg}" alt="QR Code" /></div>
-<div class="code">${displayCode}</div>
-${type === "delivery" ? `<div class="order-ref">Orden: ${code}</div>` : ""}
-<div class="actions"><button class="btn-print" onclick="window.print()">🖨️ Imprimir</button><button class="btn-close" onclick="window.close()">✕ Cerrar</button></div>
-</div></body></html>`);
-    w.document.close();
+    const urlType = type === "reception" ? "ot" : "ce";
+    const bid = activeBranch ? `?branchId=${activeBranch}` : "";
+    window.open(`/print-qr/${urlType}/${code}${bid}`, "_blank");
   };
 
-  const filteredRepairs = repairs.filter((r) => { const q = searchQuery.toLowerCase(); const matchSearch = q === "" || r.code.toLowerCase().includes(q) || r.device.toLowerCase().includes(q) || (r.clientName || "").toLowerCase().includes(q) || (r.brand || "").toLowerCase().includes(q); const matchStatus = filterStatus === "all" || r.status === filterStatus; return matchSearch && matchStatus; });
-  const stats = { total: repairs.length, pending: repairs.filter((r) => ["pending", "diagnosed", "waiting_parts"].includes(r.status)).length, inProgress: repairs.filter((r) => r.status === "in_progress").length, completed: repairs.filter((r) => ["completed", "delivered"].includes(r.status)).length, revenue: repairs.filter((r) => r.status === "delivered").reduce((sum, r) => sum + r.estimatedCost, 0) };
+  const filteredRepairs = repairs;
 
   if (!user) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)", color: "var(--text-muted)", fontSize: 14 }}>Cargando...</div>;
   const btnAction: React.CSSProperties = { padding: "9px 14px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" };
@@ -640,21 +637,51 @@ return (
         <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflow: "auto", padding: "4px 0" }}>
           {/* Branch Selector for Superadmin */}
           {user?.role === "superadmin" && branches.length > 0 && (
-            <div style={{ padding: "0 6px 8px" }}>
-              <label style={{ fontSize: 9, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, display: "block" }}>🏢 Sucursal</label>
-              <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "8px 10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, color: "#eeeef2", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none" }}>
-                {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118" }}>{b.name}</option>)}
-              </select>
+            <div style={{ padding: "0 6px 12px", borderBottom: "1px solid rgba(99,102,241,0.1)", marginBottom: 4 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 7, display: "flex", alignItems: "center", gap: 5 }}>🏢 Sucursal activa</div>
+              <div style={{ position: "relative" }}>
+                <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "9px 28px 9px 12px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", borderLeft: "2px solid #6366f1", borderRadius: "0 10px 10px 0", color: "#c7d2fe", fontSize: 12, fontWeight: 700, cursor: "pointer", outline: "none" }}>
+                  {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118", color: "#eeeef2" }}>{b.name}</option>)}
+                </select>
+                <span style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", color: "#6366f1", fontSize: 10, pointerEvents: "none" }}>▾</span>
+              </div>
             </div>
           )}
-          {[{ label: "Panel Principal", path: "/dashboard", icon: "📋", active: true }, { label: "Servicios", path: "/services", icon: "🛠️" }, { label: "Inventario", path: "/inventory", icon: "📦" }, { label: "Software", path: "/software", icon: "🎮" }, { label: "Escáner", path: "/scanner", icon: "📷" }, { label: "Cotizaciones", path: "/quotations", icon: "🧾" }, { label: "Extracto", path: "/extracto", icon: "📊" },
-          ...(user?.role === "superadmin" ? [{ label: "Usuarios", path: "/admin/users", icon: "👥" }, { label: "Sucursales", path: "/admin/branches", icon: "🏢" }, { label: "Configuración", path: "/admin/settings", icon: "⚙️" }] : [])
-          ].map((item) => (
-            <button key={item.path} className={`sidebar-btn${(item as any).active ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push(item.path); }}>
-              <div className="sidebar-icon" style={{ background: (item as any).active ? "rgba(99,102,241,0.15)" : "transparent" }}>{item.icon}</div>
-              {item.label}
-            </button>
-          ))}
+          <>
+            {/* Standalone */}
+            {/* Recepción */}
+            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
+            <button key="/dashboard" className={`sidebar-btn sidebar-sub${true ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/dashboard"); }}><div className="sidebar-icon" style={{ background: true ? "rgba(99,102,241,0.15)" : "transparent" }}>📋</div>Panel Principal</button>
+            <button key="/scanner" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📷</div>Escáner</button>
+            </div>
+            {/* Catálogo */}
+            <button className={`sidebar-group-btn${openMenus.catalogo ? " open" : ""}`} onClick={() => toggleMenu("catalogo")} style={{ background: "rgba(251,191,36,0.08)", borderLeft: "2px solid #fbbf24", color: "#fbbf24", borderRadius: "0 8px 8px 0" }}><span>📂 Catálogo</span><span className="group-arrow" style={{ color: "#fbbf24" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.catalogo ? " open" : ""}`}>
+            <button key="/services" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/services"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🛠️</div>Servicios</button>
+            <button key="/inventory" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/inventory"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📦</div>Inventario</button>
+            <button key="/equipment" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/equipment"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💻</div>Equipos</button>
+            <button key="/software" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/software"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💿</div>Programas</button>
+            <button key="/videogames" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/videogames"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🎮</div>Videojuegos</button>
+            <button key="/consoles" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/consoles"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🕹️</div>Consolas</button>
+            </div>
+            {/* Documentos */}
+            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
+            <button key="/quotations" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🧾</div>Cotizaciones</button>
+            <button key="/extracto" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/extracto"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📊</div>Extracto</button>
+            <button key="/certificates" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏅</div>Certificados</button>
+            </div>
+            {/* Administración */}
+            {user?.role === "superadmin" && (<>
+            <button className={`sidebar-group-btn${openMenus.admin ? " open" : ""}`} onClick={() => toggleMenu("admin")} style={{ background: "rgba(248,113,113,0.08)", borderLeft: "2px solid #f87171", color: "#f87171", borderRadius: "0 8px 8px 0" }}><span>⚙️ Administración</span><span className="group-arrow" style={{ color: "#f87171" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.admin ? " open" : ""}`}>
+            <button key="/admin/users" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/users"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>👥</div>Usuarios</button>
+            <button key="/admin/branches" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/branches"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏢</div>Sucursales</button>
+            <button key="/admin/settings" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/settings"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>⚙️</div>Configuración</button>
+            </div>
+            </>)}
+            </>
         </nav>
         <div style={{ borderTop: "1px solid var(--border)", padding: "12px 6px" }}>
           <div style={{ padding: "14px 10px", marginBottom: 8, background: "rgba(99,102,241,0.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,0.08)", textAlign: "center" }}>
@@ -713,17 +740,67 @@ return (
             <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px" }} suppressHydrationWarning>{getGreeting()}, {user?.name?.split(" ")[0]} 👋</h1>
             <p style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 4 }}>Aquí está el resumen de tu taller</p>
           </div>
-          <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>{[{ label: "Total Órdenes", value: stats.total, icon: "📋", color: "#6366f1", gradient: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(99,102,241,0.02))" }, { label: "Pendientes", value: stats.pending, icon: "⏳", color: "#f59e0b", gradient: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.02))" }, { label: "En Progreso", value: stats.inProgress, icon: "🔧", color: "#3b82f6", gradient: "linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.02))" }, { label: "Completadas", value: stats.completed, icon: "✅", color: "#10b981", gradient: "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.02))" }].map((s, i) => (<div key={i} style={{ padding: "20px 18px", background: s.gradient, borderRadius: 16, border: `1px solid ${s.color}15`, animation: `fadeIn 0.4s ease-out ${i * 0.06}s both`, position: "relative", overflow: "hidden" }}><div style={{ position: "absolute", top: -10, right: -10, fontSize: 48, opacity: 0.06 }}>{s.icon}</div><div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: 600 }}>{s.label}</div><div style={{ fontSize: 28, fontWeight: 800, color: s.color, marginTop: 8, letterSpacing: "-0.5px" }}>{s.value}</div></div>))}</div>
+          <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 28 }}>{[{ label: "Total Órdenes", value: stats.total, icon: "📋", color: "#6366f1", gradient: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(99,102,241,0.02))" }, { label: "Pendientes", value: stats.pending, icon: "⏳", color: "#f59e0b", gradient: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.02))" }, { label: "En Progreso", value: stats.inProgress, icon: "🔧", color: "#3b82f6", gradient: "linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.02))" }, { label: "Completadas", value: stats.completed, icon: "✅", color: "#10b981", gradient: "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.02))" }].map((s, i) => (<div key={i} style={{ padding: "20px 18px", background: s.gradient, borderRadius: 16, border: `1px solid ${s.color}15`, animation: `cardIn 0.4s ease-out ${i * 0.08}s both`, position: "relative", overflow: "hidden" }}><div style={{ position: "absolute", top: -10, right: -10, fontSize: 48, opacity: 0.06 }}>{s.icon}</div><div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: 600 }}>{s.label}</div><div className="stat-value" style={{ fontSize: 28, fontWeight: 800, color: s.color, marginTop: 8, letterSpacing: "-0.5px", animationDelay: `${0.2 + i * 0.1}s` }}>{s.value}</div></div>))}</div>
+
+          {/* Acceso rápido */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 12 }}>⚡ Acceso Rápido</div>
+            <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+              {[
+                { label: "Extracto", desc: "Reportes y movimientos", icon: "📊", color: "#8b5cf6", path: "/extracto" },
+                { label: "Cotizaciones", desc: "COT y Notas de Venta", icon: "🧾", color: "#d97706", path: "/quotations" },
+                { label: "Certificados", desc: "Licencias y garantías", icon: "🏅", color: "#ec4899", path: "/certificates" },
+                { label: "Escáner QR", desc: "Buscar por QR", icon: "📷", color: "#06b6d4", path: "/scanner" },
+              ].map((s, i) => (
+                <button
+                  key={s.path}
+                  onClick={() => router.push(s.path)}
+                  style={{
+                    padding: "18px 18px", background: `linear-gradient(135deg, ${s.color}10, ${s.color}02)`,
+                    borderRadius: 16, border: `1px solid ${s.color}15`,
+                    animation: `cardIn 0.4s ease-out ${0.3 + i * 0.06}s both`,
+                    position: "relative", overflow: "hidden", cursor: "pointer", textAlign: "left",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = `${s.color}40`; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = `${s.color}15`; }}
+                >
+                  <div style={{ position: "absolute", top: -10, right: -10, fontSize: 48, opacity: 0.08 }}>{s.icon}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.color}20`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{s.icon}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: s.color, letterSpacing: "-0.3px" }}>{s.label}</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>{s.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 12, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 240, maxWidth: 380, display: "flex", alignItems: "center", gap: 10, background: "var(--bg-card)", borderRadius: 12, padding: "0 16px", border: "1px solid var(--border)" }}><span style={{ color: "var(--text-muted)", fontSize: 14 }}>🔍</span><input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar por código, dispositivo, cliente..." style={{ flex: 1, border: "none", background: "none", padding: "12px 0", color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
-            <div className="filter-btns" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{[{ key: "all", label: "Todas", icon: "📋", color: "#6366f1" }, ...Object.entries(STATUS).map(([key, val]) => ({ key, label: val.label, icon: val.icon, color: val.color }))].map((f) => { const isActive = filterStatus === f.key; const count = f.key === "all" ? repairs.length : repairs.filter(r => r.status === f.key).length; return (<button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ padding: "8px 14px", borderRadius: 10, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s", background: isActive ? `${f.color}15` : "var(--bg-card)", border: isActive ? `1.5px solid ${f.color}40` : "1.5px solid var(--border)", color: isActive ? f.color : "var(--text-muted)" }}><span style={{ fontSize: 13 }}>{f.icon}</span>{f.label}{count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 6, minWidth: 18, textAlign: "center", background: isActive ? `${f.color}20` : "var(--bg-tertiary)", color: isActive ? f.color : "var(--text-muted)" }}>{count}</span>}</button>); })}</div>
+            <div className="filter-btns" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{[{ key: "all", label: "Todas", icon: "📋", color: "#6366f1" }, ...Object.entries(STATUS).map(([key, val]) => ({ key, label: val.label, icon: val.icon, color: val.color }))].map((f) => { const isActive = filterStatus === f.key; const count = f.key === "all" ? stats.total : (stats.byStatus[f.key] || 0); return (<button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ padding: "8px 14px", borderRadius: 10, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s", background: isActive ? `${f.color}15` : "var(--bg-card)", border: isActive ? `1.5px solid ${f.color}40` : "1.5px solid var(--border)", color: isActive ? f.color : "var(--text-muted)" }}><span style={{ fontSize: 13 }}>{f.icon}</span>{f.label}{count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 6, minWidth: 18, textAlign: "center", background: isActive ? `${f.color}20` : "var(--bg-tertiary)", color: isActive ? f.color : "var(--text-muted)" }}>{count}</span>}</button>); })}</div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
               {completedRepairs.length > 0 && (<button onClick={openDeliveryModal} style={{ padding: "10px 20px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 12, color: "#818cf8", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>📱 Entregar <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: 8, background: "rgba(99,102,241,0.15)", fontWeight: 800 }}>{completedRepairs.length}</span></button>)}
               <button onClick={() => router.push("/new-order")} style={{ padding: "10px 20px", background: "linear-gradient(135deg, #6366f1, #7c3aed)", border: "none", borderRadius: 12, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 16px rgba(99,102,241,0.3)" }}>＋ Nueva Orden</button>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}><h2 style={{ fontSize: 18, fontWeight: 700 }}>Reparaciones</h2><span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--bg-card)", padding: "3px 10px", borderRadius: 10 }}>{filteredRepairs.length}</span></div>
-          {loading ? (<div style={{ padding: 60, textAlign: "center" }}><p style={{ color: "var(--text-muted)", fontSize: 14 }}>Cargando...</p></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}><h2 style={{ fontSize: 18, fontWeight: 700 }}>Reparaciones</h2><span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--bg-card)", padding: "3px 10px", borderRadius: 10 }}>{totalRepairs}{totalRepairs !== stats.total ? ` de ${stats.total}` : ""}</span></div>
+          {loading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="skeleton-card" style={{ animation: `cardIn 0.4s ease-out ${i * 0.08}s both` }}>
+                  <div className="skeleton" style={{ width: 52, height: 52, borderRadius: 12, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div className="skeleton skeleton-title" />
+                    <div className="skeleton skeleton-text" />
+                    <div className="skeleton skeleton-text-sm" />
+                  </div>
+                  <div style={{ width: 80, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                    <div className="skeleton" style={{ width: 70, height: 24, borderRadius: 12 }} />
+                    <div className="skeleton" style={{ width: 50, height: 12 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : filteredRepairs.length === 0 ? (<div style={{ padding: 60, textAlign: "center", background: "var(--bg-card)", borderRadius: 18, border: "1px solid var(--border)" }}><div style={{ fontSize: 48, marginBottom: 16 }}>📋</div><h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>No hay reparaciones</h3><p style={{ color: "var(--text-muted)", fontSize: 13 }}>Crea tu primera orden</p></div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -903,6 +980,30 @@ return (
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 20, flexWrap: "wrap" }}>
+              <button onClick={() => goToPage(1)} disabled={currentPage === 1} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: currentPage === 1 ? "var(--bg-tertiary)" : "var(--bg-card)", color: currentPage === 1 ? "var(--text-muted)" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: currentPage === 1 ? "default" : "pointer", opacity: currentPage === 1 ? 0.5 : 1 }}>«</button>
+              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: currentPage === 1 ? "var(--bg-tertiary)" : "var(--bg-card)", color: currentPage === 1 ? "var(--text-muted)" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: currentPage === 1 ? "default" : "pointer", opacity: currentPage === 1 ? 0.5 : 1 }}>‹</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                .reduce((acc: (number | string)[], p, i, arr) => {
+                  if (i > 0 && typeof arr[i - 1] === "number" && (p as number) - (arr[i - 1] as number) > 1) acc.push("...");
+                  acc.push(p); return acc;
+                }, [])
+                .map((p, i) =>
+                  typeof p === "string" ? (
+                    <span key={`dots-${i}`} style={{ padding: "8px 6px", fontSize: 12, color: "var(--text-muted)" }}>...</span>
+                  ) : (
+                    <button key={p} onClick={() => goToPage(p as number)} style={{ padding: "8px 14px", borderRadius: 8, border: p === currentPage ? "1.5px solid #6366f1" : "1px solid var(--border)", background: p === currentPage ? "rgba(99,102,241,0.15)" : "var(--bg-card)", color: p === currentPage ? "#818cf8" : "var(--text-secondary)", fontSize: 12, fontWeight: p === currentPage ? 800 : 600, cursor: "pointer", minWidth: 38, transition: "all 0.15s" }}>{p}</button>
+                  )
+                )}
+              <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: currentPage === totalPages ? "var(--bg-tertiary)" : "var(--bg-card)", color: currentPage === totalPages ? "var(--text-muted)" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: currentPage === totalPages ? "default" : "pointer", opacity: currentPage === totalPages ? 0.5 : 1 }}>›</button>
+              <button onClick={() => goToPage(totalPages)} disabled={currentPage === totalPages} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: currentPage === totalPages ? "var(--bg-tertiary)" : "var(--bg-card)", color: currentPage === totalPages ? "var(--text-muted)" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: currentPage === totalPages ? "default" : "pointer", opacity: currentPage === totalPages ? 0.5 : 1 }}>»</button>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>Pág {currentPage} de {totalPages}</span>
             </div>
           )}
         </div>

@@ -27,15 +27,16 @@ export default function QuotationPrintPage() {
   if (!q) return <div style={{ padding: 60, textAlign: "center", fontFamily: "Arial", fontSize: 16, color: "#e44" }}>Documento no encontrado: {code}</div>;
 
   const isQuot = q.type === "quotation";
-  const color = isQuot ? "#d97706" : "#059669";
-  const colorLight = isQuot ? "#fef3c7" : "#d1fae5";
-  const colorBorder = isQuot ? "#fde68a" : "#6ee7b7";
+  // COTIZACIÓN = ámbar/naranja | NOTA DE VENTA = lila/morado (diferenciado de CE que es verde)
+  const color = isQuot ? "#d97706" : "#a855f7";
+  const colorLight = isQuot ? "#fef3c7" : "#f3e8ff";
+  const colorBorder = isQuot ? "#fde68a" : "#d8b4fe";
+  const colorDark = isQuot ? "#b45309" : "#7e22ce";
   const docTitle = isQuot ? "COTIZACIÓN" : "NOTA DE VENTA";
   const docIcon = isQuot ? "📋" : "💰";
   const today = new Date().toLocaleDateString("es-BO", { year: "numeric", month: "long", day: "numeric" });
   const qrBranch = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("branchId") : null;
   const qrUrl = typeof window !== "undefined" ? `${window.location.origin}/quotations/print/${q.code}${qrBranch ? `?branchId=${qrBranch}` : ""}` : "";
-  const qrColor = isQuot ? "d97706" : "059669";
   const qrImg = qrUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}&color=000000` : "";
   const total = q.total.toFixed(2);
   const totalQty = q.items.reduce((s, i) => s + i.qty, 0);
@@ -52,7 +53,7 @@ export default function QuotationPrintPage() {
       <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "12px 24px", background: "#111118", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100 }}>
         <span style={{ color: "#eee", fontSize: 14, fontWeight: 600 }}>{docIcon} {docTitle} — {q.code}</span>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => window.print()} style={{ padding: "8px 20px", background: `linear-gradient(135deg, ${color}, ${isQuot ? "#b45309" : "#047857"})`, border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨️ Imprimir</button>
+          <button onClick={() => window.print()} style={{ padding: "8px 20px", background: `linear-gradient(135deg, ${color}, ${colorDark})`, border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨️ Imprimir</button>
           <button onClick={() => window.close()} style={{ padding: "8px 20px", background: "#1e1e2e", border: "1px solid #2e2e3e", borderRadius: 8, color: "#888", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✕ Cerrar</button>
         </div>
       </div>
@@ -88,24 +89,28 @@ export default function QuotationPrintPage() {
 
         {/* TABLA */}
         <div style={{ marginBottom: 24, border: "1px solid #e2e2e2", borderRadius: 8, overflow: "hidden" }}>
-          <div style={{ background: colorLight, padding: "10px 16px", borderBottom: `1px solid ${colorBorder}` }}><h3 style={{ fontSize: 12, fontWeight: 700, color: color, textTransform: "uppercase", margin: 0 }}>📦 Detalle de Artículos</h3></div>
+          <div style={{ background: colorLight, padding: "10px 16px", borderBottom: `1px solid ${colorBorder}` }}><h3 style={{ fontSize: 12, fontWeight: 700, color: color, textTransform: "uppercase", margin: 0 }}>🛒 Detalle de Artículos y Equipos</h3></div>
           <table>
             <thead><tr style={{ background: "#f9fafb" }}>
               <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>#</th>
-              <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>Artículo</th>
+              <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>Descripción</th>
               <th style={{ padding: "10px 16px", textAlign: "center", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>Cant.</th>
               <th style={{ padding: "10px 16px", textAlign: "right", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>P. Unitario</th>
               <th style={{ padding: "10px 16px", textAlign: "right", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>Subtotal</th>
             </tr></thead>
-            <tbody>{q.items.map((item, idx) => (
+            <tbody>{q.items.map((item: any, idx: number) => {
+              const isEq = item.isEquipment;
+              const icon = isEq ? "💻" : "📦";
+              return (
               <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : "#fafafa" }}>
                 <td style={{ padding: "10px 16px", fontSize: 12, color: "#888", borderBottom: "1px solid #f0f0f0" }}>{idx + 1}</td>
-                <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 600, borderBottom: "1px solid #f0f0f0" }}>📦 {item.name}</td>
+                <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 600, borderBottom: "1px solid #f0f0f0" }}>{icon} {item.name}{isEq && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 3, background: "#dbeafe", color: "#1e40af", fontWeight: 700, marginLeft: 6 }}>EQUIPO</span>}</td>
                 <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 700, textAlign: "center", borderBottom: "1px solid #f0f0f0" }}>{item.qty}</td>
                 <td style={{ padding: "10px 16px", fontSize: 12, textAlign: "right", color: "#555", borderBottom: "1px solid #f0f0f0" }}>{item.price.toFixed(2)}</td>
                 <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 700, textAlign: "right", color: color, borderBottom: "1px solid #f0f0f0" }}>{(item.price * item.qty).toFixed(2)}</td>
               </tr>
-            ))}</tbody>
+              );
+            })}</tbody>
           </table>
           <div style={{ padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "2px solid #e5e7eb", background: "#f9fafb" }}>
             <span></span>
@@ -120,7 +125,7 @@ export default function QuotationPrintPage() {
         {isQuot ? (
           <div style={{ marginBottom: 24, border: "1px solid #e2e2e2", borderRadius: 8, overflow: "hidden" }}><div style={{ background: "#fef3c7", padding: "10px 16px", borderBottom: "1px solid #fde68a" }}><h3 style={{ fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase", margin: 0 }}>📋 Condiciones</h3></div><div style={{ padding: "12px 16px", fontSize: 11, color: "#666", lineHeight: 1.8 }}><p>1. Validez de <strong>15 días</strong>.</p><p>2. Precios sujetos a disponibilidad.</p><p>3. No incluye instalación salvo indicación.</p><p>4. Presente este documento o código <strong>{q.code}</strong>.</p></div></div>
         ) : (
-          <div style={{ marginBottom: 24, padding: "16px 20px", background: "#d1fae5", borderRadius: 8, border: "2px solid #6ee7b7" }}><h3 style={{ fontSize: 12, fontWeight: 700, color: "#047857", textTransform: "uppercase", marginBottom: 8 }}>✅ Confirmación de Venta</h3><p style={{ fontSize: 11, lineHeight: 1.7, color: "#333" }}>Se confirma la venta al cliente <strong>{q.clientName}</strong> por <strong>Bs. {total}</strong>. Artículos descontados del inventario. Garantía según política de cada producto.</p></div>
+          <div style={{ marginBottom: 24, padding: "16px 20px", background: colorLight, borderRadius: 8, border: `2px solid ${colorBorder}` }}><h3 style={{ fontSize: 12, fontWeight: 700, color: colorDark, textTransform: "uppercase", marginBottom: 8 }}>✅ Confirmación de Venta</h3><p style={{ fontSize: 11, lineHeight: 1.7, color: "#333" }}>Se confirma la venta al cliente <strong>{q.clientName}</strong> por <strong>Bs. {total}</strong>. Artículos descontados del inventario. Garantía según política de cada producto.</p></div>
         )}
 
         {/* FIRMAS */}

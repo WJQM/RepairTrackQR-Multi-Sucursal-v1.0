@@ -44,8 +44,13 @@ export async function POST(request: Request) {
     if (!clientName || !items || items.length === 0) return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
 
     const prefix = type === "sale" ? "NV" : "COT";
-    const count = await prisma.quotation.count({ where: { type, branchId } });
-    const code = `${prefix}-${count + 1}`;
+    const sep = prefix + "-";
+    const result = await prisma.$queryRaw<{max_num: number}[]>`
+      SELECT COALESCE(MAX(CAST(REPLACE(code, ${sep}, '') AS INTEGER)), 0) as max_num
+      FROM "Quotation"
+      WHERE "branchId" = ${branchId} AND "type" = ${type || "quotation"} AND code ~ ${`^${prefix}-[0-9]+$`}
+    `;
+    const code = `${prefix}-${(result[0]?.max_num || 0) + 1}`;
 
     const quotation = await prisma.quotation.create({
       data: { code, type: type || "quotation", clientName, clientPhone: clientPhone || "", items: JSON.stringify(items), total: total || 0, notes: notes || "", userId: user.id, branchId },
@@ -78,8 +83,13 @@ export async function PATCH(request: Request) {
       const existing = await prisma.quotation.findUnique({ where: { id } });
       if (existing && existing.type !== type) {
         const prefix = type === "sale" ? "NV" : "COT";
-        const count = await prisma.quotation.count({ where: { type, branchId: existing.branchId } });
-        updateData.code = `${prefix}-${count + 1}`;
+        const sep = prefix + "-";
+        const result = await prisma.$queryRaw<{max_num: number}[]>`
+          SELECT COALESCE(MAX(CAST(REPLACE(code, ${sep}, '') AS INTEGER)), 0) as max_num
+          FROM "Quotation"
+          WHERE "branchId" = ${existing.branchId} AND "type" = ${type} AND code ~ ${`^${prefix}-[0-9]+$`}
+        `;
+        updateData.code = `${prefix}-${(result[0]?.max_num || 0) + 1}`;
       }
     }
 

@@ -35,6 +35,8 @@ function greet(): string { const h = new Date().getHours(); return h < 12 ? "Bue
 export default function AsignacionesPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ "recepcion": true, "documentos": false });
+  const toggleMenu = (key: string) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const [user, setUser] = useState<User | null>(null);
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +125,13 @@ export default function AsignacionesPage() {
         .sb{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border-radius:10px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-muted);transition:.15s;text-align:left}
         .sb:hover{background:rgba(99,102,241,.06);color:var(--text-secondary)}.sb.on{background:rgba(99,102,241,.12);color:#818cf8}
         .sbi{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+        .sidebar-group-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 10px;border-radius:8px;border:none;font-size:9px;font-weight:700;cursor:pointer;background:transparent;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;transition:.15s;text-align:left}
+        .sidebar-group-btn:hover{background:rgba(99,102,241,.04);color:var(--text-secondary)}
+        .group-arrow{font-size:11px;transition:transform .2s;color:var(--text-muted)}
+        .sidebar-group-btn.open .group-arrow{transform:rotate(180deg)}
+        .sidebar-sub-list{overflow:hidden;max-height:0;transition:max-height .25s ease}
+        .sidebar-sub-list.open{max-height:200px}
+        .sb.sub{padding-left:22px}
         .chip{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:600}
         .abtn{transition:.15s}.abtn:hover{filter:brightness(1.15);transform:scale(1.02)}
       
@@ -159,11 +168,18 @@ export default function AsignacionesPage() {
           </div>
         </div>
         <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflow: "auto", padding: "4px 0" }}>
-          {[{ l: "Mis Asignaciones", p: "/asignaciones", i: "📋", on: true }, { l: "Escáner", p: "/scanner", i: "📷" }, { l: "Cotizaciones", p: "/quotations", i: "🧾" }].map(x => (
-            <button key={x.p} className={`sb${(x as any).on ? " on" : ""}`} onClick={() => { setMenuOpen(false); router.push(x.p); }}>
-              <div className="sbi" style={{ background: (x as any).on ? "rgba(99,102,241,.15)" : "transparent" }}>{x.i}</div>{x.l}
-            </button>
-          ))}
+          {/* Recepción */}
+            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
+            <button key="/asignaciones" className={`sb sub on`} onClick={() => { setMenuOpen(false); router.push("/asignaciones"); }}><div className="sbi" style={{ background: "rgba(99,102,241,0.15)" }}>📋</div>Mis Asignaciones</button>
+            <button key="/scanner" className={`sb sub`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sbi" style={{ background: "transparent" }}>📷</div>Escáner</button>
+            </div>
+            {/* Documentos */}
+            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
+            <button key="/quotations" className={`sb sub`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sbi" style={{ background: "transparent" }}>🧾</div>Cotizaciones</button>
+            <button key="/certificates" className={`sb sub`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sbi" style={{ background: "transparent" }}>🏅</div>Certificados</button>
+            </div>
         </nav>
         <div style={{ borderTop: "1px solid var(--border)", padding: "12px 6px" }}>
           <div style={{ padding: "14px 10px", marginBottom: 8, background: "rgba(99,102,241,.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,.08)", textAlign: "center" }}>

@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       serialUnits,
       software,
       quotations,
+      certificates,
       settings,
     ] = await Promise.all([
       // Superadmin gets all branches, admin gets only their own
@@ -94,6 +95,13 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
       }),
 
+      // Certificates
+      prisma.certificate.findMany({
+        where: branchFilter,
+        include: { user: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "desc" },
+      }),
+
       // Settings (global)
       prisma.settings.findMany(),
     ]);
@@ -116,6 +124,7 @@ export async function GET(request: Request) {
         serialUnits,
         software,
         quotations,
+        certificates,
         settings,
       },
       stats: {
@@ -128,6 +137,7 @@ export async function GET(request: Request) {
         serialUnits: serialUnits.length,
         software: software.length,
         quotations: quotations.length,
+        certificates: certificates.length,
         settings: settings.length,
       },
     };

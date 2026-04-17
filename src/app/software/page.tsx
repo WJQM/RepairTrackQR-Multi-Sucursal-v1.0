@@ -4,9 +4,22 @@ import { apiFetch, getStoredAuth, getActiveBranchId, setActiveBranchId } from "@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-interface SoftwareItem { id: string; name: string; category: string | null; size: string | null; image: string | null; active: boolean; }
+interface SoftwareItem {
+  id: string;
+  name: string;
+  category: string | null;
+  size: string | null;
+  description: string | null;
+  language: string | null;
+  rating: string | null;
+  minRequirements: string | null;
+  recRequirements: string | null;
+  image: string | null;
+  active: boolean;
+}
 
-const INITIAL_CATEGORIES = ["Juegos", "Programas", "Sistemas Operativos", "Drivers", "Utilidades", "Office", "Diseño", "Antivirus"];
+const INITIAL_CATEGORIES = ["Programas", "Sistemas Operativos", "Drivers", "Utilidades", "Office", "Diseño", "Antivirus"];
+const RATINGS = ["", "PEGI 3", "PEGI 7", "PEGI 12", "PEGI 16", "PEGI 18", "ESRB E", "ESRB E10+", "ESRB T", "ESRB M", "ESRB AO"];
 
 function parseImages(img: string | null): string[] {
   if (!img) return [];
@@ -17,6 +30,8 @@ function parseImages(img: string | null): string[] {
 export default function SoftwarePage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({"catalogo": true, "documentos": false, "admin": false, "recepcion": false});
+  const toggleMenu = (key: string) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const [branches, setBranches] = useState<{id:string;name:string}[]>([]);
   const [activeBranch, setActiveBranch] = useState<string>("");
   const [items, setItems] = useState<SoftwareItem[]>([]);
@@ -27,6 +42,11 @@ export default function SoftwarePage() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [size, setSize] = useState("");
+  const [description, setDescription] = useState("");
+  const [language, setLanguage] = useState("");
+  const [rating, setRating] = useState("");
+  const [minRequirements, setMinRequirements] = useState("");
+  const [recRequirements, setRecRequirements] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -70,6 +90,8 @@ export default function SoftwarePage() {
         const data = JSON.parse(savedForm);
         setEditingId(data.editingId || null); setName(data.name || ""); setCategory(data.category || "");
         setSize(data.size || "");
+        setDescription(data.description || ""); setLanguage(data.language || ""); setRating(data.rating || "");
+        setMinRequirements(data.minRequirements || ""); setRecRequirements(data.recRequirements || "");
         setImageUrls(data.imageUrls || []); setImagePreviews(data.imagePreviews || []);
         setShowForm(true);
       } catch {}
@@ -93,7 +115,13 @@ export default function SoftwarePage() {
   const deleteCategory = (idx: number) => { const cat = categories[idx]; if (!confirm(`¿Eliminar "${cat}"?`)) return; saveCategories(categories.filter((_, i) => i !== idx)); if (filterCategory === cat) setFilterCategory("all"); sileo.success({ title: `"${cat}" eliminada` }); };
   const saveEditCategory = (idx: number) => { const t = editingCatName.trim(); if (!t || t === categories[idx]) { setEditingCatIdx(null); return; } if (categories.includes(t)) { sileo.error({ title: "Ya existe" }); return; } const old = categories[idx]; const u = [...categories]; u[idx] = t; saveCategories(u); if (filterCategory === old) setFilterCategory(t); setEditingCatIdx(null); sileo.success({ title: `Renombrada` }); };
 
-  const resetForm = () => { setName(""); setCategory(""); setSize(""); setImageUrls([]); setImagePreviews([]); setEditingId(null); setShowForm(false); };
+  const resetForm = () => {
+    setName(""); setCategory(""); setSize("");
+    setDescription(""); setLanguage(""); setRating("");
+    setMinRequirements(""); setRecRequirements("");
+    setImageUrls([]); setImagePreviews([]);
+    setEditingId(null); setShowForm(false);
+  };
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files; if (!files || files.length === 0) return;
@@ -113,7 +141,10 @@ export default function SoftwarePage() {
   };
 
   const handleTakePhoto = () => {
-    sessionStorage.setItem("softwareFormData", JSON.stringify({ editingId, name, category, size, imageUrls, imagePreviews }));
+    sessionStorage.setItem("softwareFormData", JSON.stringify({
+      editingId, name, category, size, description, language, rating,
+      minRequirements, recRequirements, imageUrls, imagePreviews,
+    }));
     sessionStorage.setItem("cameraReturnUrl", "/software");
     window.location.href = "/camera.html";
   };
@@ -124,12 +155,23 @@ export default function SoftwarePage() {
     const token = sessionStorage.getItem("token"); if (!token) return;
     if (!name.trim()) { sileo.error({ title: "Nombre es requerido" }); return; }
     const imageData = imageUrls.length > 1 ? JSON.stringify(imageUrls) : imageUrls[0] || null;
+    const payload = {
+      name: name.trim(),
+      category: category || null,
+      size: size.trim() || null,
+      description: description.trim() || null,
+      language: language.trim() || null,
+      rating: rating || null,
+      minRequirements: minRequirements.trim() || null,
+      recRequirements: recRequirements.trim() || null,
+      image: imageData,
+    };
     try {
       if (editingId) {
-        const res = await apiFetch("/api/software", { method: "PATCH", body: JSON.stringify({ id: editingId, name, category, size, image: imageData }) });
+        const res = await apiFetch("/api/software", { method: "PATCH", body: JSON.stringify({ id: editingId, ...payload }) });
         if (res.ok) { sileo.success({ title: "Actualizado" }); resetForm(); loadItems(); }
       } else {
-        const res = await apiFetch("/api/software", { method: "POST", body: JSON.stringify({ name, category, size, image: imageData }) });
+        const res = await apiFetch("/api/software", { method: "POST", body: JSON.stringify(payload) });
         if (res.ok) { sileo.success({ title: "Agregado" }); resetForm(); loadItems(); }
       }
     } catch { sileo.error({ title: "Error" }); }
@@ -138,6 +180,8 @@ export default function SoftwarePage() {
   const editItem = (item: SoftwareItem) => {
     setEditingId(item.id); setName(item.name); setCategory(item.category || "");
     setSize(item.size || "");
+    setDescription(item.description || ""); setLanguage(item.language || ""); setRating(item.rating || "");
+    setMinRequirements(item.minRequirements || ""); setRecRequirements(item.recRequirements || "");
     const imgs = parseImages(item.image);
     setImageUrls(imgs); setImagePreviews(imgs);
     setShowForm(true);
@@ -159,7 +203,7 @@ export default function SoftwarePage() {
 
   const getCategoryColor = (cat: string | null): string => {
     if (!cat) return "#6b7280";
-    const map: Record<string, string> = { "Juegos": "#ef4444", "Programas": "#3b82f6", "Sistemas Operativos": "#10b981", "Drivers": "#f59e0b", "Utilidades": "#8b5cf6", "Office": "#0ea5e9", "Diseño": "#ec4899", "Antivirus": "#14b8a6" };
+    const map: Record<string, string> = { "Programas": "#3b82f6", "Sistemas Operativos": "#10b981", "Drivers": "#f59e0b", "Utilidades": "#8b5cf6", "Office": "#0ea5e9", "Diseño": "#ec4899", "Antivirus": "#14b8a6" };
     return map[cat] || "#6366f1";
   };
 
@@ -170,7 +214,7 @@ export default function SoftwarePage() {
 {viewImage && (
         <div onClick={() => setViewImage(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, cursor: "pointer" }}>
           <div style={{ position: "relative", maxWidth: "90%", maxHeight: "90%" }}>
-            <img src={viewImage} alt="Software" style={{ maxWidth: "100%", maxHeight: "85vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
+            <img src={viewImage} alt="Programa" style={{ maxWidth: "100%", maxHeight: "85vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
             <button onClick={() => setViewImage(null)} style={{ position: "absolute", top: -14, right: -14, width: 32, height: 32, borderRadius: "50%", background: "rgba(239,68,68,0.9)", border: "none", color: "#fff", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
           </div>
         </div>
@@ -221,21 +265,51 @@ export default function SoftwarePage() {
 
           {/* Branch Selector for Superadmin */}
           {user?.role === "superadmin" && branches.length > 0 && (
-            <div style={{ padding: "0 6px 8px" }}>
-              <label style={{ fontSize: 9, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, display: "block" }}>🏢 Sucursal</label>
-              <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "8px 10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, color: "#eeeef2", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none" }}>
-                {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118" }}>{b.name}</option>)}
-              </select>
+            <div style={{ padding: "0 6px 12px", borderBottom: "1px solid rgba(99,102,241,0.1)", marginBottom: 4 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 7, display: "flex", alignItems: "center", gap: 5 }}>🏢 Sucursal activa</div>
+              <div style={{ position: "relative" }}>
+                <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "9px 28px 9px 12px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", borderLeft: "2px solid #6366f1", borderRadius: "0 10px 10px 0", color: "#c7d2fe", fontSize: 12, fontWeight: 700, cursor: "pointer", outline: "none" }}>
+                  {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118", color: "#eeeef2" }}>{b.name}</option>)}
+                </select>
+                <span style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", color: "#6366f1", fontSize: 10, pointerEvents: "none" }}>▾</span>
+              </div>
             </div>
           )}
-          {[{ label: "Panel Principal", path: "/dashboard", icon: "📋" }, { label: "Servicios", path: "/services", icon: "🛠️" }, { label: "Inventario", path: "/inventory", icon: "📦" }, { label: "Software", path: "/software", icon: "🎮", active: true }, { label: "Escáner", path: "/scanner", icon: "📷" }, { label: "Cotizaciones", path: "/quotations", icon: "🧾" }, { label: "Extracto", path: "/extracto", icon: "📊" },
-          ...(user?.role === "superadmin" ? [{ label: "Usuarios", path: "/admin/users", icon: "👥" }, { label: "Sucursales", path: "/admin/branches", icon: "🏢" }, { label: "Configuración", path: "/admin/settings", icon: "⚙️" }] : [])
-          ].map((item) => (
-            <button key={item.path} className={`sidebar-btn${(item as any).active ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push(item.path); }}>
-              <div className="sidebar-icon" style={{ background: (item as any).active ? "rgba(99,102,241,0.15)" : "transparent" }}>{item.icon}</div>
-              {item.label}
-            </button>
-          ))}
+          <>
+            {/* Standalone */}
+            {/* Recepción */}
+            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
+            <button key="/dashboard" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/dashboard"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📋</div>Panel Principal</button>
+            <button key="/scanner" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📷</div>Escáner</button>
+            </div>
+            {/* Catálogo */}
+            <button className={`sidebar-group-btn${openMenus.catalogo ? " open" : ""}`} onClick={() => toggleMenu("catalogo")} style={{ background: "rgba(251,191,36,0.08)", borderLeft: "2px solid #fbbf24", color: "#fbbf24", borderRadius: "0 8px 8px 0" }}><span>📂 Catálogo</span><span className="group-arrow" style={{ color: "#fbbf24" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.catalogo ? " open" : ""}`}>
+            <button key="/services" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/services"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🛠️</div>Servicios</button>
+            <button key="/inventory" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/inventory"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📦</div>Inventario</button>
+            <button key="/equipment" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/equipment"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💻</div>Equipos</button>
+            <button key="/software" className={`sidebar-btn sidebar-sub${true ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/software"); }}><div className="sidebar-icon" style={{ background: true ? "rgba(99,102,241,0.15)" : "transparent" }}>💿</div>Programas</button>
+            <button key="/videogames" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/videogames"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🎮</div>Videojuegos</button>
+            <button key="/consoles" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/consoles"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🕹️</div>Consolas</button>
+            </div>
+            {/* Documentos */}
+            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
+            <button key="/quotations" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🧾</div>Cotizaciones</button>
+            <button key="/extracto" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/extracto"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📊</div>Extracto</button>
+            <button key="/certificates" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏅</div>Certificados</button>
+            </div>
+            {/* Administración */}
+            {user?.role === "superadmin" && (<>
+            <button className={`sidebar-group-btn${openMenus.admin ? " open" : ""}`} onClick={() => toggleMenu("admin")} style={{ background: "rgba(248,113,113,0.08)", borderLeft: "2px solid #f87171", color: "#f87171", borderRadius: "0 8px 8px 0" }}><span>⚙️ Administración</span><span className="group-arrow" style={{ color: "#f87171" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.admin ? " open" : ""}`}>
+            <button key="/admin/users" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/users"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>👥</div>Usuarios</button>
+            <button key="/admin/branches" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/branches"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏢</div>Sucursales</button>
+            <button key="/admin/settings" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/settings"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>⚙️</div>Configuración</button>
+            </div>
+            </>)}
+            </>
         </nav>
         <div style={{ borderTop: "1px solid var(--border)", padding: "12px 6px" }}>
           <div style={{ padding: "14px 10px", marginBottom: 8, background: "rgba(99,102,241,0.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,0.08)", textAlign: "center" }}>
@@ -253,7 +327,7 @@ export default function SoftwarePage() {
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
         <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14, marginBottom: 28 }}>
           {[
-            { label: "Total Software", value: items.length, icon: "🎮", color: "#8b5cf6" },
+            { label: "Total Programas", value: items.length, icon: "🎮", color: "#8b5cf6" },
             { label: "Categorías", value: usedCategories.length, icon: "🏷️", color: "#10b981" },
           ].map((s, i) => (
             <div key={i} style={{ padding: "20px 18px", background: `linear-gradient(135deg, ${s.color}10, ${s.color}02)`, borderRadius: 16, border: `1px solid ${s.color}15`, animation: `fadeIn 0.4s ease-out ${i * 0.06}s both`, position: "relative", overflow: "hidden" }}>
@@ -268,7 +342,7 @@ export default function SoftwarePage() {
           <div style={{ display: "flex", gap: 10, alignItems: "center", flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-card)", borderRadius: 10, padding: "0 14px", border: "1px solid var(--border)", flex: 1, maxWidth: 300 }}>
               <span style={{ color: "var(--text-muted)", fontSize: 13 }}>🔍</span>
-              <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar software..." style={{ border: "none", background: "none", padding: "10px 0", color: "var(--text-primary)", fontSize: 13, outline: "none", width: "100%" }} />
+              <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar programa..." style={{ border: "none", background: "none", padding: "10px 0", color: "var(--text-primary)", fontSize: 13, outline: "none", width: "100%" }} />
             </div>
             <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ padding: "10px 14px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-primary)", fontSize: 12, cursor: "pointer", outline: "none" }}>
               <option value="all">Todas las categorías</option>
@@ -307,7 +381,7 @@ export default function SoftwarePage() {
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 150, padding: 20 }}>
             <div style={{ width: "100%", maxWidth: 600, maxHeight: "90vh", overflow: "auto", background: "var(--bg-card)", borderRadius: 20, border: "1px solid rgba(139,92,246,0.2)", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", animation: "fadeScale 0.3s ease-out" }}>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#8b5cf6" }}>{editingId ? "✏️ Editar" : "＋ Nuevo Software"}</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#8b5cf6" }}>{editingId ? "✏️ Editar Programa" : "＋ Nuevo Programa"}</h3>
                 <button onClick={resetForm} style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
               </div>
               <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -328,9 +402,14 @@ export default function SoftwarePage() {
                 </div>
 
                 <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Nombre *</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Windows 11 Pro, GTA V..." style={fieldStyle} /></div>
+                  <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Nombre *</label><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Windows 11 Pro, Adobe Photoshop..." style={fieldStyle} /></div>
                   <div><label style={labelStyle}>Categoría</label><select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...fieldStyle, cursor: "pointer" }}><option value="">Sin categoría</option>{categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select></div>
                   <div><label style={labelStyle}>💾 Peso</label><input value={size} onChange={(e) => setSize(e.target.value)} placeholder="Ej: 50 GB, 1.2 GB..." style={fieldStyle} /></div>
+                  <div><label style={labelStyle}>🌐 Idioma</label><input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="Español, Inglés, Multi..." style={fieldStyle} /></div>
+                  <div><label style={labelStyle}>🔞 Clasificación</label><select value={rating} onChange={(e) => setRating(e.target.value)} style={{ ...fieldStyle, cursor: "pointer" }}>{RATINGS.map(r => <option key={r} value={r}>{r || "Sin clasificar"}</option>)}</select></div>
+                  <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>📝 Descripción</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Breve descripción del programa..." rows={3} style={{ ...fieldStyle, resize: "vertical", fontFamily: "inherit" }} /></div>
+                  <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>⚙️ Requisitos mínimos</label><textarea value={minRequirements} onChange={(e) => setMinRequirements(e.target.value)} placeholder="CPU: Intel i3 | RAM: 4GB | GPU: GTX 650..." rows={2} style={{ ...fieldStyle, resize: "vertical", fontFamily: "inherit" }} /></div>
+                  <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>⚡ Requisitos recomendados</label><textarea value={recRequirements} onChange={(e) => setRecRequirements(e.target.value)} placeholder="CPU: Intel i5 | RAM: 8GB | GPU: GTX 1060..." rows={2} style={{ ...fieldStyle, resize: "vertical", fontFamily: "inherit" }} /></div>
                 </div>
 
                 <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
@@ -347,7 +426,7 @@ export default function SoftwarePage() {
         ) : filteredItems.length === 0 ? (
           <div style={{ padding: 60, textAlign: "center", background: "var(--bg-card)", borderRadius: 18, border: "1px solid var(--border)" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🎮</div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>No hay software agregado</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>No hay programas agregados</h3>
             <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 16 }}>Agrega juegos, programas y sistemas operativos</p>
             <button onClick={() => { resetForm(); setShowForm(true); }} style={{ padding: "10px 20px", background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", border: "none", borderRadius: 10, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>＋ Agregar</button>
           </div>

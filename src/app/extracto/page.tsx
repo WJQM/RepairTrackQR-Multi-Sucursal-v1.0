@@ -31,6 +31,8 @@ function parseImages(img: string | null): string[] {
 export default function ExtractoPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({"catalogo": false, "documentos": true, "admin": false, "recepcion": false});
+  const toggleMenu = (key: string) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const [branches, setBranches] = useState<{id:string;name:string}[]>([]);
   const [activeBranch, setActiveBranch] = useState<string>("");
   const [user, setUser] = useState<User | null>(null);
@@ -38,6 +40,10 @@ export default function ExtractoPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [extPage, setExtPage] = useState(1);
+  const EXT_PAGE_SIZE = 10;
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   // Modal de detalle de cliente
   const [viewClient, setViewClient] = useState<{ name: string; phone: string; email: string; repairs: Repair[] } | null>(null);
@@ -70,6 +76,13 @@ export default function ExtractoPage() {
   const filteredRepairs = repairs.filter(r => {
     if (filterStatus === "active" && r.status === "delivered") return false;
     if (filterStatus === "delivered" && r.status !== "delivered") return false;
+    // Date range filter (local timezone)
+    if (dateFrom || dateTo) {
+      const d = new Date(r.createdAt);
+      const rDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (dateFrom && rDate < dateFrom) return false;
+      if (dateTo && rDate > dateTo) return false;
+    }
     return true;
   });
 
@@ -89,20 +102,25 @@ export default function ExtractoPage() {
       (r.clientPhone || "").includes(q);
   });
 
+  const extTotalPages = Math.ceil(displayRepairs.length / EXT_PAGE_SIZE);
+  const paginatedRepairs = displayRepairs.slice((extPage - 1) * EXT_PAGE_SIZE, extPage * EXT_PAGE_SIZE);
+  const goExtPage = (p: number) => { setExtPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); };
+
   const totalDevices = filteredRepairs.length;
-  const totalClients = new Set(filteredRepairs.map(r => (r.clientName || "").toLowerCase())).size;
+  const totalClients = new Set(filteredRepairs.map(r => `${(r.clientName || "").toLowerCase()}|${r.clientPhone || ""}`)).size;
   const activeDevices = filteredRepairs.filter(r => r.status !== "delivered").length;
 
-  // Lista única de clientes para el picker
+  // Lista única de clientes para el picker (nombre + celular = cliente único)
   const uniqueClients = (() => {
     const map = new Map<string, { name: string; phone: string; count: number; active: number }>();
     repairs.forEach(r => {
-      const key = (r.clientName || "Sin nombre").trim().toLowerCase();
-      if (!map.has(key)) map.set(key, { name: r.clientName || "Sin nombre", phone: "", count: 0, active: 0 });
+      const name = (r.clientName || "Sin nombre").trim();
+      const phone = (r.clientPhone || "").trim();
+      const key = `${name.toLowerCase()}|${phone}`;
+      if (!map.has(key)) map.set(key, { name, phone, count: 0, active: 0 });
       const c = map.get(key)!;
       c.count++;
       if (r.status !== "delivered") c.active++;
-      if (!c.phone && r.clientPhone) c.phone = r.clientPhone;
     });
     return Array.from(map.values()).sort((a, b) => b.count - a.count);
   })();
@@ -113,10 +131,15 @@ export default function ExtractoPage() {
     return c.name.toLowerCase().includes(q) || c.phone.includes(q);
   });
 
-  // Ver detalle de un cliente
-  const openClientDetail = (clientName: string) => {
+  // Ver detalle de un cliente (match by name + phone)
+  const openClientDetail = (clientName: string, clientPhone?: string) => {
     const name = clientName.toLowerCase();
-    const clientRepairs = repairs.filter(r => (r.clientName || "").toLowerCase() === name);
+    const clientRepairs = repairs.filter(r => {
+      if ((r.clientName || "").toLowerCase() !== name) return false;
+      // If phone provided, match by phone too
+      if (clientPhone !== undefined) return (r.clientPhone || "") === clientPhone;
+      return true;
+    });
     if (clientRepairs.length === 0) return;
     setViewClient({
       name: clientRepairs[0].clientName || "Sin nombre",
@@ -231,7 +254,7 @@ export default function ExtractoPage() {
   <div style="max-width:1100px;margin:0 auto;padding:80px 30px 40px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #6366f1;padding-bottom:20px;margin-bottom:24px">
       <div><h1 style="font-size:28px;font-weight:800">${settings.companyName}</h1><p style="font-size:11px;color:#666;margin-top:4px">EXTRACTO GENERAL DE EQUIPOS</p></div>
-      <div style="text-align:right"><p style="font-size:11px;color:#666">Fecha: ${today}</p><p style="font-size:11px;color:#666">Hora: ${time}</p></div>
+      <div style="text-align:right"><p style="font-size:11px;color:#666">Fecha: ${today}</p><p style="font-size:11px;color:#666">Hora: ${time}</p>${dateFrom || dateTo ? `<p style="font-size:11px;color:#6366f1;font-weight:600;margin-top:4px">Rango: ${dateFrom || "inicio"} → ${dateTo || "hoy"}</p>` : ""}</div>
     </div>
     <div style="background:#6366f1;color:#fff;padding:14px 20px;border-radius:8px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
       <h2 style="font-size:16px;font-weight:700">📊 LISTADO GENERAL DE EQUIPOS</h2>
@@ -308,21 +331,51 @@ export default function ExtractoPage() {
 
           {/* Branch Selector for Superadmin */}
           {user?.role === "superadmin" && branches.length > 0 && (
-            <div style={{ padding: "0 6px 8px" }}>
-              <label style={{ fontSize: 9, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, display: "block" }}>🏢 Sucursal</label>
-              <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "8px 10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, color: "#eeeef2", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none" }}>
-                {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118" }}>{b.name}</option>)}
-              </select>
+            <div style={{ padding: "0 6px 12px", borderBottom: "1px solid rgba(99,102,241,0.1)", marginBottom: 4 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 7, display: "flex", alignItems: "center", gap: 5 }}>🏢 Sucursal activa</div>
+              <div style={{ position: "relative" }}>
+                <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "9px 28px 9px 12px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", borderLeft: "2px solid #6366f1", borderRadius: "0 10px 10px 0", color: "#c7d2fe", fontSize: 12, fontWeight: 700, cursor: "pointer", outline: "none" }}>
+                  {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118", color: "#eeeef2" }}>{b.name}</option>)}
+                </select>
+                <span style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", color: "#6366f1", fontSize: 10, pointerEvents: "none" }}>▾</span>
+              </div>
             </div>
           )}
-          {[{ label: "Panel Principal", path: "/dashboard", icon: "📋" }, { label: "Servicios", path: "/services", icon: "🛠️" }, { label: "Inventario", path: "/inventory", icon: "📦" }, { label: "Software", path: "/software", icon: "🎮" }, { label: "Escáner", path: "/scanner", icon: "📷" }, { label: "Cotizaciones", path: "/quotations", icon: "🧾" }, { label: "Extracto", path: "/extracto", icon: "📊", active: true },
-          ...(user?.role === "superadmin" ? [{ label: "Usuarios", path: "/admin/users", icon: "👥" }, { label: "Sucursales", path: "/admin/branches", icon: "🏢" }, { label: "Configuración", path: "/admin/settings", icon: "⚙️" }] : [])
-          ].map((item) => (
-            <button key={item.path} className={`sidebar-btn${(item as any).active ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push(item.path); }}>
-              <div className="sidebar-icon" style={{ background: (item as any).active ? "rgba(99,102,241,0.15)" : "transparent" }}>{item.icon}</div>
-              {item.label}
-            </button>
-          ))}
+          <>
+            {/* Standalone */}
+            {/* Recepción */}
+            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
+            <button key="/dashboard" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/dashboard"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📋</div>Panel Principal</button>
+            <button key="/scanner" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📷</div>Escáner</button>
+            </div>
+            {/* Catálogo */}
+            <button className={`sidebar-group-btn${openMenus.catalogo ? " open" : ""}`} onClick={() => toggleMenu("catalogo")} style={{ background: "rgba(251,191,36,0.08)", borderLeft: "2px solid #fbbf24", color: "#fbbf24", borderRadius: "0 8px 8px 0" }}><span>📂 Catálogo</span><span className="group-arrow" style={{ color: "#fbbf24" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.catalogo ? " open" : ""}`}>
+            <button key="/services" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/services"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🛠️</div>Servicios</button>
+            <button key="/inventory" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/inventory"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📦</div>Inventario</button>
+            <button key="/equipment" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/equipment"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💻</div>Equipos</button>
+            <button key="/software" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/software"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💿</div>Programas</button>
+            <button key="/videogames" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/videogames"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🎮</div>Videojuegos</button>
+            <button key="/consoles" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/consoles"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🕹️</div>Consolas</button>
+            </div>
+            {/* Documentos */}
+            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
+            <button key="/quotations" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🧾</div>Cotizaciones</button>
+            <button key="/extracto" className={`sidebar-btn sidebar-sub${true ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/extracto"); }}><div className="sidebar-icon" style={{ background: true ? "rgba(99,102,241,0.15)" : "transparent" }}>📊</div>Extracto</button>
+            <button key="/certificates" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏅</div>Certificados</button>
+            </div>
+            {/* Administración */}
+            {user?.role === "superadmin" && (<>
+            <button className={`sidebar-group-btn${openMenus.admin ? " open" : ""}`} onClick={() => toggleMenu("admin")} style={{ background: "rgba(248,113,113,0.08)", borderLeft: "2px solid #f87171", color: "#f87171", borderRadius: "0 8px 8px 0" }}><span>⚙️ Administración</span><span className="group-arrow" style={{ color: "#f87171" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.admin ? " open" : ""}`}>
+            <button key="/admin/users" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/users"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>👥</div>Usuarios</button>
+            <button key="/admin/branches" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/branches"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏢</div>Sucursales</button>
+            <button key="/admin/settings" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/settings"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>⚙️</div>Configuración</button>
+            </div>
+            </>)}
+            </>
         </nav>
         <div style={{ borderTop: "1px solid var(--border)", padding: "12px 6px" }}>
           <div style={{ padding: "14px 10px", marginBottom: 8, background: "rgba(99,102,241,0.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,0.08)", textAlign: "center" }}>
@@ -367,7 +420,7 @@ export default function ExtractoPage() {
                         <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{c.phone && `📱 ${c.phone} · `}💻 {c.count} equipo{c.count > 1 ? "s" : ""}{c.active > 0 ? ` · 🔧 ${c.active} en taller` : ""}</div>
                       </div>
                       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                        <button onClick={(e) => { e.stopPropagation(); openClientDetail(c.name); setShowClientPicker(false); setClientSearch(""); }} style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", color: "#6366f1", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>📋 Ver</button>
+                        <button onClick={(e) => { e.stopPropagation(); openClientDetail(c.name, c.phone); setShowClientPicker(false); setClientSearch(""); }} style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", color: "#6366f1", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>📋 Ver</button>
                         <button onClick={(e) => { e.stopPropagation(); printClientExtracto(c.name); setShowClientPicker(false); setClientSearch(""); }} style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)", color: "#10b981", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>🖨️ Imprimir</button>
                       </div>
                     </div>
@@ -473,8 +526,8 @@ export default function ExtractoPage() {
         <div style={{ display: "flex", gap: 12, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 200, maxWidth: 340, display: "flex", alignItems: "center", gap: 10, background: "var(--bg-card)", borderRadius: 12, padding: "0 16px", border: "1px solid var(--border)" }}>
             <span style={{ color: "var(--text-muted)", fontSize: 14 }}>🔍</span>
-            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar por OT, cliente, equipo..." style={{ flex: 1, border: "none", background: "none", padding: "12px 0", color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
-            {searchQuery && <span onClick={() => setSearchQuery("")} style={{ cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>✕</span>}
+            <input value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setExtPage(1); }} placeholder="Buscar por OT, cliente, equipo..." style={{ flex: 1, border: "none", background: "none", padding: "12px 0", color: "var(--text-primary)", fontSize: 13, outline: "none" }} />
+            {searchQuery && <span onClick={() => { setSearchQuery(""); setExtPage(1); }} style={{ cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>✕</span>}
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             {[
@@ -483,7 +536,7 @@ export default function ExtractoPage() {
               { key: "delivered", label: "Entregados", icon: "📱", color: "#6b7280" },
             ].map(f => {
               const isActive = filterStatus === f.key;
-              return (<button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ padding: "8px 14px", borderRadius: 10, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, background: isActive ? `${f.color}15` : "var(--bg-card)", border: isActive ? `1.5px solid ${f.color}40` : "1.5px solid var(--border)", color: isActive ? f.color : "var(--text-muted)" }}><span style={{ fontSize: 13 }}>{f.icon}</span>{f.label}</button>);
+              return (<button key={f.key} onClick={() => { setFilterStatus(f.key); setExtPage(1); }} style={{ padding: "8px 14px", borderRadius: 10, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, background: isActive ? `${f.color}15` : "var(--bg-card)", border: isActive ? `1.5px solid ${f.color}40` : "1.5px solid var(--border)", color: isActive ? f.color : "var(--text-muted)" }}><span style={{ fontSize: 13 }}>{f.icon}</span>{f.label}</button>);
             })}
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
@@ -492,14 +545,49 @@ export default function ExtractoPage() {
           </div>
         </div>
 
+        {/* ═══ RANGO DE FECHAS ═══ */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-card)", borderRadius: 12, padding: "8px 16px", border: "1px solid var(--border)" }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>📅 Desde</span>
+            <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setExtPage(1); }} style={{ padding: "6px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 12, outline: "none", cursor: "pointer" }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-card)", borderRadius: 12, padding: "8px 16px", border: "1px solid var(--border)" }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>📅 Hasta</span>
+            <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setExtPage(1); }} style={{ padding: "6px 10px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 12, outline: "none", cursor: "pointer" }} />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); setExtPage(1); }} style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.06)", color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>✕ Limpiar fechas</button>
+          )}
+          {(dateFrom || dateTo) && (
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {displayRepairs.length} resultado{displayRepairs.length !== 1 ? "s" : ""} en el rango
+            </span>
+          )}
+        </div>
+
         {/* ═══ TABLA PLANA POR OT ═══ */}
         {loading ? (
-          <div style={{ padding: 60, textAlign: "center" }}><p style={{ color: "var(--text-muted)", fontSize: 14 }}>Cargando datos...</p></div>
+          <div style={{ background: "var(--bg-card)", borderRadius: 18, border: "1px solid var(--border)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", background: "var(--bg-tertiary)" }}>
+              <div className="skeleton" style={{ height: 12, width: "60%" }} />
+            </div>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} style={{ display: "flex", gap: 16, padding: "14px 16px", borderBottom: "1px solid var(--border)", animation: `cardIn 0.3s ease-out ${i * 0.06}s both` }}>
+                <div className="skeleton" style={{ width: 40, height: 14 }} />
+                <div className="skeleton" style={{ width: 50, height: 14 }} />
+                <div className="skeleton" style={{ flex: 1, height: 14 }} />
+                <div className="skeleton" style={{ width: 80, height: 14 }} />
+                <div className="skeleton" style={{ width: 60, height: 14 }} />
+                <div className="skeleton" style={{ width: 70, height: 24, borderRadius: 12 }} />
+                <div className="skeleton" style={{ width: 50, height: 14 }} />
+              </div>
+            ))}
+          </div>
         ) : displayRepairs.length === 0 ? (
           <div style={{ padding: 60, textAlign: "center", background: "var(--bg-card)", borderRadius: 18, border: "1px solid var(--border)" }}><div style={{ fontSize: 48, marginBottom: 16 }}>📊</div><h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Sin resultados</h3><p style={{ color: "var(--text-muted)", fontSize: 13 }}>No se encontraron equipos con los filtros actuales</p></div>
         ) : (
-          <div style={{ background: "var(--bg-card)", borderRadius: 18, border: "1px solid var(--border)", overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div style={{ background: "var(--bg-card)", borderRadius: 18, border: "1px solid var(--border)", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
               <thead>
                 <tr style={{ background: "var(--bg-tertiary)" }}>
                   <th style={{ padding: "12px 16px", textAlign: "center", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", width: 50 }}>#</th>
@@ -513,12 +601,12 @@ export default function ExtractoPage() {
                 </tr>
               </thead>
               <tbody>
-                {displayRepairs.map((r, idx) => {
+                {paginatedRepairs.map((r, idx) => {
                   const st = STATUS[r.status] || { label: r.status, color: "#666", icon: "❓" };
                   const devName = [r.device, r.brand, r.model].filter(Boolean).join(" ");
                   return (
-                    <tr key={r.id} className="row-hover" style={{ borderBottom: "1px solid var(--border)", transition: "background 0.15s", cursor: "pointer" }} onClick={() => openClientDetail(r.clientName || "")}>
-                      <td style={{ padding: "14px 16px", textAlign: "center", fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>{idx + 1}</td>
+                    <tr key={r.id} className="row-hover" style={{ borderBottom: "1px solid var(--border)", transition: "background 0.15s", cursor: "pointer" }} onClick={() => openClientDetail(r.clientName || "", r.clientPhone || "")}>
+                      <td style={{ padding: "14px 16px", textAlign: "center", fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>{(extPage - 1) * EXT_PAGE_SIZE + idx + 1}</td>
                       <td style={{ padding: "14px 16px" }}>
                         <span style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.08)", padding: "3px 10px", borderRadius: 6 }}>{r.code}</span>
                       </td>
@@ -539,6 +627,25 @@ export default function ExtractoPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {extTotalPages > 1 && (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 20, flexWrap: "wrap" }}>
+            <button onClick={() => goExtPage(1)} disabled={extPage === 1} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: extPage === 1 ? "var(--bg-tertiary)" : "var(--bg-card)", color: extPage === 1 ? "var(--text-muted)" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: extPage === 1 ? "default" : "pointer", opacity: extPage === 1 ? 0.5 : 1 }}>«</button>
+            <button onClick={() => goExtPage(extPage - 1)} disabled={extPage === 1} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: extPage === 1 ? "var(--bg-tertiary)" : "var(--bg-card)", color: extPage === 1 ? "var(--text-muted)" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: extPage === 1 ? "default" : "pointer", opacity: extPage === 1 ? 0.5 : 1 }}>‹</button>
+            {Array.from({ length: extTotalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === extTotalPages || Math.abs(p - extPage) <= 2)
+              .reduce((acc: (number | string)[], p, i, arr) => { if (i > 0 && typeof arr[i - 1] === "number" && (p as number) - (arr[i - 1] as number) > 1) acc.push("..."); acc.push(p); return acc; }, [])
+              .map((p, i) => typeof p === "string" ? (
+                <span key={`d-${i}`} style={{ padding: "8px 6px", fontSize: 12, color: "var(--text-muted)" }}>...</span>
+              ) : (
+                <button key={p} onClick={() => goExtPage(p as number)} style={{ padding: "8px 14px", borderRadius: 8, border: p === extPage ? "1.5px solid #6366f1" : "1px solid var(--border)", background: p === extPage ? "rgba(99,102,241,0.15)" : "var(--bg-card)", color: p === extPage ? "#818cf8" : "var(--text-secondary)", fontSize: 12, fontWeight: p === extPage ? 800 : 600, cursor: "pointer", minWidth: 38 }}>{p}</button>
+              ))}
+            <button onClick={() => goExtPage(extPage + 1)} disabled={extPage === extTotalPages} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: extPage === extTotalPages ? "var(--bg-tertiary)" : "var(--bg-card)", color: extPage === extTotalPages ? "var(--text-muted)" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: extPage === extTotalPages ? "default" : "pointer", opacity: extPage === extTotalPages ? 0.5 : 1 }}>›</button>
+            <button onClick={() => goExtPage(extTotalPages)} disabled={extPage === extTotalPages} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: extPage === extTotalPages ? "var(--bg-tertiary)" : "var(--bg-card)", color: extPage === extTotalPages ? "var(--text-muted)" : "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: extPage === extTotalPages ? "default" : "pointer", opacity: extPage === extTotalPages ? 0.5 : 1 }}>»</button>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>Pág {extPage} de {extTotalPages} · {displayRepairs.length} registros</span>
           </div>
         )}
       </div>

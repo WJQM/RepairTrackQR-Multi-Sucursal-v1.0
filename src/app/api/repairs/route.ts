@@ -3,22 +3,12 @@ import { NextResponse } from "next/server";
 import { getUserFromToken, getEffectiveBranchId } from "@/lib/auth";
 
 async function generateCode(branchId: string): Promise<string> {
-  const lastRepair = await prisma.repair.findFirst({
-    where: { branchId, code: { startsWith: "OT-" } },
-    orderBy: { createdAt: "desc" },
-  });
-
-  let nextNum = 1;
-  if (lastRepair) {
-    const match = lastRepair.code.match(/^OT-(\d+)$/);
-    if (match) nextNum = parseInt(match[1], 10) + 1;
-  }
-
-  // Verify uniqueness within branch
-  const exists = await prisma.repair.findFirst({ where: { code: `OT-${nextNum}`, branchId } });
-  if (exists) nextNum = nextNum + 1;
-
-  return `OT-${nextNum}`;
+  const result = await prisma.$queryRaw<{max_num: number}[]>`
+    SELECT COALESCE(MAX(CAST(REPLACE(code, 'OT-', '') AS INTEGER)), 0) as max_num
+    FROM "Repair"
+    WHERE "branchId" = ${branchId} AND code ~ '^OT-[0-9]+$'
+  `;
+  return `OT-${(result[0]?.max_num || 0) + 1}`;
 }
 
 export async function GET(request: Request) {
@@ -26,28 +16,65 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const branchId = getEffectiveBranchId(request, user);
+  const { searchParams } = new URL(request.url);
+  const paginated = searchParams.has("page");
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10")));
+  const search = searchParams.get("search") || "";
+  const status = searchParams.get("status") || "";
 
   const where: any = {};
+  if (user.role === "tech") { where.technicianId = user.id; where.branchId = user.branchId; }
+  else if (branchId) { where.branchId = branchId; }
 
-  // Tech only sees assigned repairs
-  if (user.role === "tech") {
-    where.technicianId = user.id;
-    where.branchId = user.branchId;
-  } else if (branchId) {
-    where.branchId = branchId;
+  if (status && status !== "all") where.status = status;
+  if (search) {
+    where.OR = [
+      { code: { contains: search, mode: "insensitive" } },
+      { device: { contains: search, mode: "insensitive" } },
+      { clientName: { contains: search, mode: "insensitive" } },
+      { brand: { contains: search, mode: "insensitive" } },
+    ];
   }
-  // superadmin without x-branch-id sees all
 
-  const repairs = await prisma.repair.findMany({
-    where,
-    include: {
-      technician: { select: { id: true, name: true } },
-      branch: { select: { id: true, name: true } },
-    },
-    orderBy: { createdAt: "desc" },
+  // Non-paginated: return plain array (extracto, asignaciones, messages)
+  if (!paginated) {
+    const repairs = await prisma.repair.findMany({
+      where, include: { technician: { select: { id: true, name: true } }, branch: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(repairs);
+  }
+
+  // Paginated: return object with stats (dashboard)
+  const [repairs, total] = await Promise.all([
+    prisma.repair.findMany({
+      where, include: { technician: { select: { id: true, name: true } }, branch: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "desc" }, skip: (page - 1) * limit, take: limit,
+    }),
+    prisma.repair.count({ where }),
+  ]);
+
+  const sw: any = {};
+  if (user.role === "tech") { sw.technicianId = user.id; sw.branchId = user.branchId; }
+  else if (branchId) { sw.branchId = branchId; }
+
+  const [totalAll, pending, diagnosed, waitingParts, inProgress, completed, delivered, revenue] = await Promise.all([
+    prisma.repair.count({ where: sw }),
+    prisma.repair.count({ where: { ...sw, status: "pending" } }),
+    prisma.repair.count({ where: { ...sw, status: "diagnosed" } }),
+    prisma.repair.count({ where: { ...sw, status: "waiting_parts" } }),
+    prisma.repair.count({ where: { ...sw, status: "in_progress" } }),
+    prisma.repair.count({ where: { ...sw, status: "completed" } }),
+    prisma.repair.count({ where: { ...sw, status: "delivered" } }),
+    prisma.repair.aggregate({ where: { ...sw, status: "delivered" }, _sum: { estimatedCost: true } }),
+  ]);
+
+  return NextResponse.json({
+    repairs, total, page, limit, totalPages: Math.ceil(total / limit),
+    stats: { total: totalAll, pending: pending + diagnosed + waitingParts, inProgress, completed: completed + delivered, revenue: revenue._sum.estimatedCost || 0,
+      byStatus: { pending, diagnosed, waiting_parts: waitingParts, in_progress: inProgress, completed, delivered } },
   });
-
-  return NextResponse.json(repairs);
 }
 
 export async function POST(request: Request) {

@@ -19,6 +19,7 @@ const PROTECTED_PREFIXES = [
   "/print",
   "/messages",
   "/admin",
+  "/certificates",
 ];
 
 function isProtected(pathname: string): boolean {
@@ -62,5 +63,6 @@ export const config = {
     "/print/:path*",
     "/messages/:path*",
     "/admin/:path*",
+    "/certificates/:path*",
   ],
 };

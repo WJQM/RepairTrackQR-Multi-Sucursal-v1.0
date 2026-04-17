@@ -4,22 +4,36 @@ import { apiFetch, getStoredAuth, getActiveBranchId, setActiveBranchId } from "@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-type QRType = "track" | "delivery" | "quotation" | "sale" | "code";
+type QRType = "track" | "delivery" | "quotation" | "sale" | "code" | "certificate" | "equipment" | "console";
 
 function detectQR(text: string): { type: QRType; code: string; branchId?: string } {
   const t = text.trim();
   // Extract branchId from URL if present
   const urlBranch = t.includes("branchId=") ? (t.split("branchId=").pop()?.split("&")[0] || "") : "";
+  // Equipment QR (portal URL with ?eq=)
+  if (t.includes("/portal?eq=") || t.includes("&eq=")) {
+    const eqId = t.split(/[?&]eq=/).pop()?.split(/[&#]/)[0] || "";
+    if (eqId) return { type: "equipment", code: eqId, branchId: urlBranch || undefined };
+  }
+  // Console QR (portal URL with ?cn=)
+  if (t.includes("/portal?cn=") || t.includes("&cn=")) {
+    const cnId = t.split(/[?&]cn=/).pop()?.split(/[&#]/)[0] || "";
+    if (cnId) return { type: "console", code: cnId, branchId: urlBranch || undefined };
+  }
   // URLs directas
   if (t.includes("/delivery/")) return { type: "delivery", code: t.split("/delivery/").pop()?.split("?")[0] || t, branchId: urlBranch || undefined };
   if (t.includes("/track/")) return { type: "track", code: t.split("/track/").pop()?.split("?")[0] || t, branchId: urlBranch || undefined };
-  if (t.includes("/quotations?view=")) { const id = t.split("view=").pop()?.split("&")[0] || t; return { type: id.startsWith("NV") ? "sale" : "quotation", code: id, branchId: urlBranch || undefined }; }
-  if (t.includes("/quotations/print/")) return { type: t.toUpperCase().includes("NV") ? "sale" : "quotation", code: t.split("/quotations/print/").pop()?.split("?")[0] || t, branchId: urlBranch || undefined };
+  if (t.includes("/quotations?view=")) { const id = t.split("view=").pop()?.split("&")[0] || t; return { type: id.toUpperCase().startsWith("NV") ? "sale" : "quotation", code: id, branchId: urlBranch || undefined }; }
+  if (t.includes("/quotations/print/")) { const id = t.split("/quotations/print/").pop()?.split("?")[0] || t; return { type: id.toUpperCase().startsWith("NV") ? "sale" : "quotation", code: id, branchId: urlBranch || undefined }; }
+  if (t.includes("/certificate-view/")) return { type: "certificate", code: (t.split("/certificate-view/").pop()?.split("?")[0] || t).toUpperCase(), branchId: urlBranch || undefined };
 
   const upper = t.toUpperCase();
   // Códigos directos
+  if (upper.startsWith("EQ-")) return { type: "equipment", code: upper };
+  if (upper.startsWith("CN-")) return { type: "console", code: upper };
   if (upper.startsWith("CE-")) return { type: "delivery", code: `OT-${upper.replace("CE-", "")}` };
   if (upper.startsWith("AE-")) return { type: "delivery", code: `OT-${upper.replace("AE-", "")}` }; // compatibilidad
+  if (upper.startsWith("CL-")) return { type: "certificate", code: t.toUpperCase() };
   if (upper.startsWith("COT-")) return { type: "quotation", code: t };
   if (upper.startsWith("NV-")) return { type: "sale", code: t };
   // Por defecto es seguimiento OT
@@ -29,6 +43,8 @@ function detectQR(text: string): { type: QRType; code: string; branchId?: string
 export default function ScannerPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({"catalogo": false, "documentos": false, "admin": false, "recepcion": true});
+  const toggleMenu = (key: string) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const [branches, setBranches] = useState<{id:string;name:string}[]>([]);
   const [activeBranch, setActiveBranch] = useState<string>("");
   const [user, setUser] = useState<any>(null);
@@ -38,6 +54,7 @@ export default function ScannerPage() {
   const [loading, setLoading] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const [settings, setSettings] = useState<{ companyName: string; logo: string | null }>({ companyName: "RepairTrackQR", logo: null });
+  const [branchPicker, setBranchPicker] = useState<{ items: any[]; type: QRType; code: string } | null>(null);
   const scannerRef = useRef<any>(null);
   const scannerContainerId = "qr-reader";
 
@@ -80,34 +97,131 @@ export default function ScannerPage() {
     setScanning(false);
   };
 
-  const navigateTo = async (detected: { type: QRType; code: string }) => {
-    setLoading(true); setError("");
+  const navigateTo = async (detected: { type: QRType; code: string; branchId?: string }) => {
+    setLoading(true); setError(""); setBranchPicker(null);
 
-    // COT y NV están en la base de datos
+    const isSuperAdmin = user?.role === "superadmin";
+    // Admin/tech: always scope to their branch. Superadmin: search all (no branchId)
+    const userBranch = !isSuperAdmin ? (user?.branchId || "") : "";
+    // If detected has a branchId from QR URL, use that. Otherwise use role-based.
+    const searchBranch = detected.branchId || userBranch;
+
+    // EQ - Equipos (abre la ficha técnica / portal)
+    if (detected.type === "equipment") {
+      try {
+        const res = await apiFetch(`/api/equipment`);
+        if (!res.ok) { setError(`Error al buscar equipos`); setLoading(false); return; }
+        const items: any[] = await res.json();
+        const upper = detected.code.toUpperCase();
+        // Match by id OR by code
+        let matches = items.filter(e => e.id === detected.code || (e.code && e.code.toUpperCase() === upper));
+        // For admin/tech, only their branch
+        if (!isSuperAdmin && searchBranch) {
+          matches = matches.filter(e => e.branchId === searchBranch);
+        }
+        if (matches.length === 0) { setError(`No se encontró ningún equipo con el código: ${detected.code}`); setLoading(false); return; }
+        // Multiple matches (superadmin + same code in different branches)
+        if (matches.length > 1 && isSuperAdmin) {
+          setBranchPicker({ items: matches.map((m: any) => ({ ...m, branch: m.branch || { id: m.branchId, name: "Sucursal" }, device: m.name })), type: "equipment", code: detected.code });
+          setLoading(false); return;
+        }
+        setLoading(false);
+        window.open(`/equipment/print/${matches[0].id}`, "_blank");
+        return;
+      } catch { setError("Error al buscar el equipo"); setLoading(false); return; }
+    }
+
+    // CN - Consolas (abre la ficha del portal)
+    if (detected.type === "console") {
+      try {
+        const res = await apiFetch(`/api/consoles`);
+        if (!res.ok) { setError(`Error al buscar consolas`); setLoading(false); return; }
+        const items: any[] = await res.json();
+        const upper = detected.code.toUpperCase();
+        let matches = items.filter(c => c.id === detected.code || (c.code && c.code.toUpperCase() === upper));
+        if (!isSuperAdmin && searchBranch) {
+          matches = matches.filter(c => c.branchId === searchBranch);
+        }
+        if (matches.length === 0) { setError(`No se encontró ninguna consola con el código: ${detected.code}`); setLoading(false); return; }
+        if (matches.length > 1 && isSuperAdmin) {
+          setBranchPicker({ items: matches.map((m: any) => ({ ...m, branch: m.branch || { id: m.branchId, name: "Sucursal" }, device: m.name })), type: "console", code: detected.code });
+          setLoading(false); return;
+        }
+        setLoading(false);
+        window.open(`/portal?cn=${matches[0].id}`, "_blank");
+        return;
+      } catch { setError("Error al buscar la consola"); setLoading(false); return; }
+    }
+
+    // CL - Certificados de Licencia
+    if (detected.type === "certificate") {
+      try {
+        const bq = searchBranch ? `&branchId=${searchBranch}` : "";
+        const res = await apiFetch(`/api/certificates?code=${detected.code}${bq}`);
+        if (!res.ok) { setError(`No se encontró el certificado: ${detected.code}`); setLoading(false); return; }
+        const data = await res.json();
+        if (data.multiple && isSuperAdmin) {
+          setBranchPicker({ items: data.certificates, type: "certificate", code: detected.code });
+          setLoading(false); return;
+        }
+        setLoading(false);
+        const bid = data.branchId || data.branch?.id || "";
+        window.open(`/certificate-view/${detected.code}${bid ? `?branchId=${bid}` : ""}`, "_blank");
+        return;
+      } catch { setError("Error al buscar el certificado"); setLoading(false); return; }
+    }
+
+    // COT y NV
     if (detected.type === "quotation" || detected.type === "sale") {
       try {
-        const bq = detected.branchId ? `&branchId=${detected.branchId}` : "";
+        const bq = searchBranch ? `&branchId=${searchBranch}` : "";
         const res = await apiFetch(`/api/quotations?code=${detected.code}${bq}`);
         if (!res.ok) { setError(`No se encontró el documento: ${detected.code}`); setLoading(false); return; }
+        const data = await res.json();
+        if (data.multiple && isSuperAdmin) {
+          setBranchPicker({ items: data.quotations.map((q: any) => ({ ...q, branch: q.branch || { id: q.branchId, name: "Sucursal" } })), type: detected.type, code: detected.code });
+          setLoading(false); return;
+        }
         setLoading(false);
-        window.open(`/quotations/print/${detected.code}${detected.branchId ? `?branchId=${detected.branchId}` : ""}`, "_blank");
+        const bid = data.branchId || data.branch?.id || searchBranch;
+        window.open(`/quotations/print/${detected.code}${bid ? `?branchId=${bid}` : ""}`, "_blank");
         return;
       } catch { setError("Error al buscar el documento"); setLoading(false); return; }
     }
 
-    // OT y CE necesitan validar en API
+    // OT y CE
     try {
-      const bq = detected.branchId ? `?branchId=${detected.branchId}` : "";
+      const bq = searchBranch ? `?branchId=${searchBranch}` : "";
       const res = await apiFetch(`/api/track/${detected.code}${bq}`);
       if (!res.ok) { setError(`No se encontró ninguna orden con el código: ${detected.code}`); setLoading(false); return; }
+      const data = await res.json();
+      if (data.multiple && isSuperAdmin) {
+        setBranchPicker({ items: data.repairs, type: detected.type, code: detected.code });
+        setLoading(false); return;
+      }
+      const bid = data.branchId || data.branch?.id || searchBranch;
+      setLoading(false);
+      switch (detected.type) {
+        case "delivery": window.open(`/delivery/${detected.code}${bid ? `?branchId=${bid}` : ""}`, "_blank"); break;
+        case "track":
+        case "code": router.push(`/track/${detected.code}?from=scanner${bid ? `&branchId=${bid}` : ""}`); break;
+      }
     } catch { setError("Error al buscar la orden"); setLoading(false); return; }
-    setLoading(false);
-    const bp = detected.branchId ? `?branchId=${detected.branchId}` : "";
-    switch (detected.type) {
-      case "delivery": window.open(`/delivery/${detected.code}${bp}`, "_blank"); break;
+  };
+
+  const handleBranchPick = (item: any) => {
+    if (!branchPicker) return;
+    const bid = item.branchId || item.branch?.id || "";
+    switch (branchPicker.type) {
+      case "equipment": window.open(`/equipment/print/${item.id}`, "_blank"); break;
+      case "certificate": window.open(`/certificate-view/${branchPicker.code}?branchId=${bid}`, "_blank"); break;
+      case "quotation":
+      case "sale": window.open(`/quotations/print/${branchPicker.code}?branchId=${bid}`, "_blank"); break;
+      case "delivery": window.open(`/delivery/${branchPicker.code}?branchId=${bid}`, "_blank"); break;
       case "track":
-      case "code": router.push(`/track/${detected.code}?from=scanner${detected.branchId ? `&branchId=${detected.branchId}` : ""}`); break;
+      case "code": router.push(`/track/${branchPicker.code}?from=scanner&branchId=${bid}`); break;
     }
+    setBranchPicker(null);
   };
 
   const handleManualSearch = (e: React.FormEvent) => {
@@ -123,6 +237,9 @@ export default function ScannerPage() {
     { prefix: "CE-#", label: "Comprobante de Entrega", desc: "Abre el comprobante de entrega al cliente", color: "#10b981", bg: "rgba(16,185,129,0.1)", borderColor: "rgba(16,185,129,0.1)", icon: "📄" },
     { prefix: "COT-#", label: "Cotización", desc: "Abre el detalle de la cotización", color: "#f59e0b", bg: "rgba(245,158,11,0.1)", borderColor: "rgba(245,158,11,0.1)", icon: "🧾" },
     { prefix: "NV-#", label: "Nota de Venta", desc: "Abre el detalle de la nota de venta", color: "#a855f7", bg: "rgba(168,85,247,0.1)", borderColor: "rgba(168,85,247,0.1)", icon: "💰" },
+    { prefix: "CL-#", label: "Certificado de Licencia", desc: "Abre el certificado de autenticidad de licencias", color: "#ec4899", bg: "rgba(236,72,153,0.1)", borderColor: "rgba(236,72,153,0.1)", icon: "🏅" },
+    { prefix: "EQ-#", label: "Equipo en Venta", desc: "Abre la ficha técnica del equipo para imprimir", color: "#06b6d4", bg: "rgba(6,182,212,0.1)", borderColor: "rgba(6,182,212,0.1)", icon: "💻" },
+    { prefix: "CN-#", label: "Consola", desc: "Abre la ficha de la consola en el portal", color: "#f97316", bg: "rgba(249,115,22,0.1)", borderColor: "rgba(249,115,22,0.1)", icon: "🕹️" },
   ];
 
   return (
@@ -176,19 +293,64 @@ export default function ScannerPage() {
 
           {/* Branch Selector for Superadmin */}
           {user?.role === "superadmin" && branches.length > 0 && (
-            <div style={{ padding: "0 6px 8px" }}>
-              <label style={{ fontSize: 9, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, display: "block" }}>🏢 Sucursal</label>
-              <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "8px 10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, color: "#eeeef2", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none" }}>
-                {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118" }}>{b.name}</option>)}
-              </select>
+            <div style={{ padding: "0 6px 12px", borderBottom: "1px solid rgba(99,102,241,0.1)", marginBottom: 4 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 7, display: "flex", alignItems: "center", gap: 5 }}>🏢 Sucursal activa</div>
+              <div style={{ position: "relative" }}>
+                <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "9px 28px 9px 12px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", borderLeft: "2px solid #6366f1", borderRadius: "0 10px 10px 0", color: "#c7d2fe", fontSize: 12, fontWeight: 700, cursor: "pointer", outline: "none" }}>
+                  {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118", color: "#eeeef2" }}>{b.name}</option>)}
+                </select>
+                <span style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", color: "#6366f1", fontSize: 10, pointerEvents: "none" }}>▾</span>
+              </div>
             </div>
           )}
-          {[...(user?.role === "tech" ? [{ label: "Mis Asignaciones", path: "/asignaciones", icon: "📋" }, { label: "Escáner", path: "/scanner", icon: "📷" }, { label: "Cotizaciones", path: "/quotations", icon: "🧾" }] : [{ label: "Panel Principal", path: "/dashboard", icon: "📋" }, { label: "Servicios", path: "/services", icon: "🛠️" }, { label: "Inventario", path: "/inventory", icon: "📦" }, { label: "Software", path: "/software", icon: "🎮" }, { label: "Escáner", path: "/scanner", icon: "📷" }, { label: "Cotizaciones", path: "/quotations", icon: "🧾" }, { label: "Extracto", path: "/extracto", icon: "📊" }, ...(user?.role === "superadmin" ? [{ label: "Usuarios", path: "/admin/users", icon: "👥" }, { label: "Sucursales", path: "/admin/branches", icon: "🏢" }, { label: "Configuración", path: "/admin/settings", icon: "⚙️" }] : [])])].map(item => ({ ...item, active: item.path === "/scanner" })).map((item) => (
-            <button key={item.path} className={`sidebar-btn${(item as any).active ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push(item.path); }}>
-              <div className="sidebar-icon" style={{ background: (item as any).active ? "rgba(99,102,241,0.15)" : "transparent" }}>{item.icon}</div>
-              {item.label}
-            </button>
-          ))}
+          {user?.role === "tech" ? (<>
+            {/* Recepción */}
+            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
+            <button key="/asignaciones" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/asignaciones"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📋</div>Mis Asignaciones</button>
+            <button key="/scanner" className={`sidebar-btn sidebar-sub${true ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sidebar-icon" style={{ background: true ? "rgba(99,102,241,0.15)" : "transparent" }}>📷</div>Escáner</button>
+            </div>
+            {/* Documentos */}
+            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
+            <button key="/quotations" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🧾</div>Cotizaciones</button>
+            <button key="/certificates" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏅</div>Certificados</button>
+            </div>
+            </>) : (<>
+            {/* Standalone */}
+            {/* Recepción */}
+            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
+            <button key="/dashboard" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/dashboard"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📋</div>Panel Principal</button>
+            <button key="/scanner" className={`sidebar-btn sidebar-sub${true ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sidebar-icon" style={{ background: true ? "rgba(99,102,241,0.15)" : "transparent" }}>📷</div>Escáner</button>
+            </div>
+            {/* Catálogo */}
+            <button className={`sidebar-group-btn${openMenus.catalogo ? " open" : ""}`} onClick={() => toggleMenu("catalogo")} style={{ background: "rgba(251,191,36,0.08)", borderLeft: "2px solid #fbbf24", color: "#fbbf24", borderRadius: "0 8px 8px 0" }}><span>📂 Catálogo</span><span className="group-arrow" style={{ color: "#fbbf24" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.catalogo ? " open" : ""}`}>
+            <button key="/services" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/services"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🛠️</div>Servicios</button>
+            <button key="/inventory" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/inventory"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📦</div>Inventario</button>
+            <button key="/equipment" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/equipment"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💻</div>Equipos</button>
+            <button key="/software" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/software"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💿</div>Programas</button>
+            <button key="/videogames" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/videogames"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🎮</div>Videojuegos</button>
+            <button key="/consoles" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/consoles"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🕹️</div>Consolas</button>
+            </div>
+            {/* Documentos */}
+            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
+            <button key="/quotations" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🧾</div>Cotizaciones</button>
+            <button key="/extracto" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/extracto"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📊</div>Extracto</button>
+            <button key="/certificates" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏅</div>Certificados</button>
+            </div>
+            {/* Administración */}
+            {user?.role === "superadmin" && (<>
+            <button className={`sidebar-group-btn${openMenus.admin ? " open" : ""}`} onClick={() => toggleMenu("admin")} style={{ background: "rgba(248,113,113,0.08)", borderLeft: "2px solid #f87171", color: "#f87171", borderRadius: "0 8px 8px 0" }}><span>⚙️ Administración</span><span className="group-arrow" style={{ color: "#f87171" }}>▾</span></button>
+            <div className={`sidebar-sub-list${openMenus.admin ? " open" : ""}`}>
+            <button key="/admin/users" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/users"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>👥</div>Usuarios</button>
+            <button key="/admin/branches" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/branches"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏢</div>Sucursales</button>
+            <button key="/admin/settings" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/settings"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>⚙️</div>Configuración</button>
+            </div>
+            </>)}
+            </>)}
         </nav>
         <div style={{ borderTop: "1px solid var(--border)", padding: "12px 6px" }}>
           <div style={{ padding: "14px 10px", marginBottom: 8, background: "rgba(99,102,241,0.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,0.08)", textAlign: "center" }}>
@@ -236,12 +398,37 @@ export default function ScannerPage() {
             <form onSubmit={handleManualSearch} style={{ display: "flex", gap: 8, marginBottom: 20 }}>
               <div style={{ flex: 1, display: "flex", alignItems: "center", background: "var(--bg-tertiary)", borderRadius: 12, border: "1px solid var(--border)", padding: "0 14px" }}>
                 <span style={{ color: "var(--text-muted)", fontSize: 13, marginRight: 8 }}>🔍</span>
-                <input value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="OT-1, CE-1, COT-1, NV-1..." style={{ flex: 1, border: "none", background: "none", padding: "13px 0", color: "var(--text-primary)", fontSize: 14, outline: "none", fontFamily: "monospace", fontWeight: 600 }} />
+                <input value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="OT-1, CE-1, COT-1, NV-1, CL-1, EQ-1..." style={{ flex: 1, border: "none", background: "none", padding: "13px 0", color: "var(--text-primary)", fontSize: 14, outline: "none", fontFamily: "monospace", fontWeight: 600 }} />
               </div>
               <button type="submit" disabled={loading} style={{ padding: "13px 22px", background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 12, color: "#fff", fontWeight: 700, fontSize: 13, cursor: loading ? "wait" : "pointer", boxShadow: "0 4px 12px rgba(16,185,129,0.25)" }}>{loading ? "..." : "Buscar"}</button>
             </form>
 
             {error && (<div style={{ padding: 16, background: "rgba(239,68,68,0.06)", borderRadius: 14, border: "1px solid rgba(239,68,68,0.12)", marginBottom: 16, animation: "fadeScale 0.3s ease-out" }}><p style={{ fontSize: 13, color: "#ef4444", display: "flex", alignItems: "center", gap: 6 }}>⚠️ {error}</p></div>)}
+
+            {/* Branch picker for superadmin when code exists in multiple branches */}
+            {branchPicker && (
+              <div style={{ padding: 20, background: "rgba(99,102,241,0.06)", borderRadius: 16, border: "1px solid rgba(99,102,241,0.15)", marginBottom: 16, animation: "fadeScale 0.3s ease-out" }}>
+                <div style={{ textAlign: "center", marginBottom: 14 }}>
+                  <span style={{ fontFamily: "monospace", fontSize: 16, fontWeight: 800, color: "#818cf8", background: "rgba(99,102,241,0.1)", padding: "4px 14px", borderRadius: 8 }}>{branchPicker.code}</span>
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>Este código existe en varias sucursales. ¿Cuál deseas ver?</p>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {branchPicker.items.map((item: any, i: number) => (
+                    <button key={item.id || i} onClick={() => handleBranchPick(item)} style={{ padding: "12px 16px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "all 0.15s" }}
+                      onMouseOver={(e) => { (e.currentTarget as any).style.borderColor = "#818cf8"; }}
+                      onMouseOut={(e) => { (e.currentTarget as any).style.borderColor = "var(--border)"; }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>🏢 {item.branch?.name || "Sucursal"}</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{item.clientName || item.device || item.code || ""}</div>
+                      </div>
+                      <span style={{ fontSize: 12, color: "#818cf8", fontWeight: 600 }}>Abrir →</span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setBranchPicker(null)} style={{ width: "100%", marginTop: 10, padding: "8px", background: "none", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-muted)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
+              </div>
+            )}
+
             {loading && (<div style={{ padding: 20, textAlign: "center" }}><div style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "pulse 0.8s ease-in-out infinite" }} /><p style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 8 }}>Verificando documento...</p></div>)}
 
             {!error && !loading && (
@@ -264,11 +451,12 @@ export default function ScannerPage() {
                   </div>
                 </div>
                 <div style={{ padding: "12px 16px", background: "rgba(99,102,241,0.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,0.08)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}><span style={{ fontSize: 13 }}>💡</span><span style={{ fontSize: 11, fontWeight: 700, color: "#818cf8" }}>Ejemplo para la orden #1</span></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}><span style={{ fontSize: 13 }}>💡</span><span style={{ fontSize: 11, fontWeight: 700, color: "#818cf8" }}>Ejemplos de códigos</span></div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {[
                       { code: "OT-1", label: "Seguimiento", color: "#6366f1" },
                       { code: "CE-1", label: "Entrega", color: "#10b981" },
+                      { code: "CL-1", label: "Licencia", color: "#ec4899" },
                     ].map((ex) => (
                       <span key={ex.code} style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 6, background: `${ex.color}12`, color: ex.color, border: `1px solid ${ex.color}20` }}>{ex.code} → {ex.label}</span>
                     ))}
