@@ -1,7 +1,7 @@
 "use client";
 import { sileo } from "@/lib/toast";
 import { apiFetch, getStoredAuth, getActiveBranchId, setActiveBranchId } from "@/lib/api";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { StatusTimeline } from "@/components/StatusTimeline";
@@ -69,7 +69,7 @@ function getGreeting(): string { const h = new Date().getHours(); if (h < 12) re
 function formatClock(date: Date): { time: string; period: string } { const h = date.getHours(); const m = String(date.getMinutes()).padStart(2, "0"); const s = String(date.getSeconds()).padStart(2, "0"); const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h; return { time: `${String(h12).padStart(2, "0")}:${m}:${s}`, period: h >= 12 ? "PM" : "AM" }; }
 function formatDate(date: Date): string { return date.toLocaleDateString("es-BO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); }
 
-export default function DashboardPage() {
+function DashboardInner() {
   const router = useRouter();
   const [branches, setBranches] = useState<{id:string;name:string}[]>([]);
   const [activeBranch, setActiveBranch] = useState<string>("");
@@ -975,6 +975,14 @@ return (
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-primary)", color: "var(--text-muted)", fontSize: 14 }}>Cargando...</div>}>
+      <DashboardInner />
+    </Suspense>
   );
 }
 
