@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
+// Carpeta permanente fuera del proyecto - sobrevive git pull
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -34,10 +37,9 @@ export async function POST(request: Request) {
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
+    await mkdir(UPLOAD_DIR, { recursive: true });
 
-    const filePath = path.join(uploadDir, fileName);
+    const filePath = path.join(UPLOAD_DIR, fileName);
     await writeFile(filePath, buffer);
 
     return NextResponse.json({ url: `/uploads/${fileName}` });
