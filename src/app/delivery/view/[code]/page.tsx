@@ -59,6 +59,19 @@ export default function DeliveryFullPage() {
       <style>{`
         @media print { @page { size: letter; margin: 12mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .print-content { padding-top: 0 !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; } body { background: #fff; }
+        @media (max-width: 700px) {
+          .print-content { padding: 60px 14px 24px !important; }
+          .header-row { flex-direction: column !important; gap: 10px !important; }
+          .header-row > div:last-child { text-align: left !important; }
+          .qr-main-row { flex-direction: column !important; }
+          .client-equip-row { flex-direction: column !important; }
+          .acc-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .firma-row { gap: 20px !important; }
+          .no-print { padding: 10px 12px !important; flex-direction: column !important; align-items: stretch !important; }
+          .no-print > span { font-size: 12px !important; }
+          .no-print > div { flex-wrap: wrap !important; gap: 6px !important; }
+          .no-print > div button { flex: 1 1 auto !important; font-size: 11px !important; padding: 7px 8px !important; }
+        }
       `}</style>
 
       {/* BARRA DE ACCIONES */}
@@ -74,7 +87,7 @@ export default function DeliveryFullPage() {
       <div className="print-content" style={{ maxWidth: 800, margin: "0 auto", padding: "60px 40px 40px", fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif", color: "#111" }}>
 
         {/* ═══ HEADER ═══ */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 18, marginBottom: 20, borderBottom: `3px solid ${accent}` }}>
+        <div className="header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 18, marginBottom: 20, borderBottom: `3px solid ${accent}` }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {settings.logo && <img src={settings.logo} alt="Logo" style={{ width: 36, height: 36, objectFit: "contain" }} />}
@@ -107,7 +120,7 @@ export default function DeliveryFullPage() {
         </div>
 
         {/* ═══ QR + CLIENTE + EQUIPO ═══ */}
-        <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
+        <div className="qr-main-row" style={{ display: "flex", gap: 20, marginBottom: 24 }}>
           {/* QR Grande */}
           <div style={{ textAlign: "center", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ padding: 10, border: `3px solid ${accent}`, borderRadius: 14, background: "#fff", boxShadow: "0 2px 12px rgba(5,150,105,0.1)" }}>
@@ -118,7 +131,7 @@ export default function DeliveryFullPage() {
           </div>
 
           {/* Cliente + Equipo lado a lado */}
-          <div style={{ flex: 1, display: "flex", gap: 14 }}>
+          <div className="client-equip-row" style={{ flex: 1, display: "flex", gap: 14 }}>
             <div style={{ flex: 1, border: "1px solid #e2e2e2", borderRadius: 10, overflow: "hidden" }}>
               <div style={{ background: "#f0f0ff", padding: "10px 18px", borderBottom: "1px solid #d5d5ef" }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#6366f1", textTransform: "uppercase" }}>👤 Cliente</span>
@@ -148,7 +161,7 @@ export default function DeliveryFullPage() {
           </div>
           <div style={{ padding: "12px 18px" }}>
             {checkedAcc.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              <div className="acc-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {checkedAcc.map((a, i) => { const { name, detail } = parseAccWithDetail(a); return (
                   <div key={a} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: i % 2 === 0 ? "#f0fdf4" : "#fff", borderRadius: 6, border: "1px solid #d1fae5" }}>
                     <span style={{ width: 18, height: 18, borderRadius: 4, background: accent, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 800, flexShrink: 0 }}>✓</span>
@@ -200,7 +213,7 @@ export default function DeliveryFullPage() {
         </div>
 
         {/* ═══ FIRMAS ═══ */}
-        <div style={{ display: "flex", gap: 50, marginBottom: 30 }}>
+        <div className="firma-row" style={{ display: "flex", gap: 50, marginBottom: 30 }}>
           <div style={{ flex: 1, textAlign: "center" }}>
             <div style={{ borderBottom: "2px solid #333", height: 60 }} />
             <p style={{ fontSize: 13, fontWeight: 700, marginTop: 6 }}>Técnico Responsable</p>

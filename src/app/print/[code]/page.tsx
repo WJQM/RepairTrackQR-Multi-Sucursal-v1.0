@@ -81,7 +81,7 @@ export default function PrintPage() {
       </div>
 
       {/* QR + CLIENTE + EQUIPO */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+      <div className="qr-client-row" style={{ display: "flex", gap: 8, marginBottom: 6 }}>
         <div style={{ textAlign: "center", padding: 6, border: "1px solid #e5e5e5", borderRadius: 6, background: "#fafafa", flexShrink: 0, alignSelf: "flex-start" }}>
           <div style={{ padding: 3, border: `2px solid ${accent}`, borderRadius: 5, display: "inline-block", background: "#fff" }}>
             {qrImg ? <img src={qrImg} alt="QR" width={55} height={55} style={{ display: "block" }} /> : <div style={{ width: 55, height: 55, background: "#f3f4f6" }} />}
@@ -112,7 +112,7 @@ export default function PrintPage() {
       </div>
 
       {/* DETALLES + ACCESORIOS (ancho completo) */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+      <div className="details-row" style={{ display: "flex", gap: 6, marginBottom: 6 }}>
         <div style={{ flex: 1, border: "1px solid #e5e5e5", borderRadius: 5, overflow: "hidden" }}>
           <div style={{ background: "#faf5ff", padding: "3px 8px", borderBottom: "1px solid #e9d5ff" }}>
             <span style={{ fontSize: 7, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.5px" }}>📋 Detalles</span>
@@ -155,6 +155,10 @@ export default function PrintPage() {
           .print-content { max-width: 100% !important; padding: 72px 10px 16px !important; display: flex !important; flex-direction: column !important; gap: 12px !important; }
           .receipt-container { width: 100% !important; flex: none !important; min-width: 0 !important; }
           .receipt-divider { display: none !important; }
+          .qr-client-row { flex-direction: column !important; }
+          .qr-client-row > div { width: 100% !important; flex-shrink: unset !important; }
+          .details-row { flex-direction: column !important; }
+          .details-row > div { width: 100% !important; flex: none !important; }
         }
       `}</style>
 
