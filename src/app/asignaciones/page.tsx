@@ -3,6 +3,7 @@ import { sileo } from "@/lib/toast";
 import { apiFetch, getStoredAuth, getActiveBranchId, setActiveBranchId } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AppSidebar } from "@/components/AppSidebar";
 
 interface User { id: string; name: string; email: string; role: string; }
 interface Repair { id: string; code: string; device: string; brand: string | null; model: string | null; issue: string; status: string; priority: string; estimatedCost: number; notes: string | null; image: string | null; accessories: string | null; clientName: string | null; clientPhone: string | null; clientEmail: string | null; qrCode: string; createdAt: string; updatedAt: string; technicianId: string | null; branchId: string; technician?: { id: string; name: string } | null; }
@@ -20,23 +21,21 @@ const STEPS = ["pending", "diagnosed", "waiting_parts", "in_progress", "complete
 
 function parseImages(img: string | null): string[] { if (!img) return []; try { const p = JSON.parse(img); if (Array.isArray(p)) return p.filter((u: any) => typeof u === "string" && u.length > 0); } catch {} return img.trim().length > 0 ? [img] : []; }
 function parseAcc(json: string | null): string[] { if (!json) return []; try { return JSON.parse(json); } catch { return []; } }
-function parseNotes(n: string | null, svcList: ServiceItem[]): { notes: string; services: string[]; software: string[]; repuestos: string[]; deliveryNotes: string; discount: string } {
-  if (!n) return { notes: "", services: [], software: [], repuestos: [], deliveryNotes: "", discount: "" };
-  const parts = n.split(" | "); const sP = parts.find(p => p.startsWith("Servicios: ")); const swP = parts.find(p => p.startsWith("Software: ")); const rP = parts.find(p => p.startsWith("Repuestos: ")); const dP = parts.find(p => p.startsWith("Entrega: ")); const discP = parts.find(p => p.startsWith("Descuento: "));
-  const rest = parts.filter(p => !p.startsWith("Servicios: ") && !p.startsWith("Software: ") && !p.startsWith("Repuestos: ") && !p.startsWith("Entrega: ") && !p.startsWith("Descuento: "));
-  const services: string[] = []; const software: string[] = []; const repuestos: string[] = [];
+function parseNotes(n: string | null, svcList: ServiceItem[]): { notes: string; services: string[]; software: string[]; videogames: string[]; repuestos: string[]; deliveryNotes: string; discount: string } {
+  if (!n) return { notes: "", services: [], software: [], videogames: [], repuestos: [], deliveryNotes: "", discount: "" };
+  const parts = n.split(" | "); const sP = parts.find(p => p.startsWith("Servicios: ")); const swP = parts.find(p => p.startsWith("Programas: ") || p.startsWith("Software: ")); const vgP = parts.find(p => p.startsWith("Videojuegos: ")); const rP = parts.find(p => p.startsWith("Repuestos: ")); const dP = parts.find(p => p.startsWith("Entrega: ")); const discP = parts.find(p => p.startsWith("Descuento: "));
+  const rest = parts.filter(p => !p.startsWith("Servicios: ") && !p.startsWith("Programas: ") && !p.startsWith("Software: ") && !p.startsWith("Videojuegos: ") && !p.startsWith("Repuestos: ") && !p.startsWith("Entrega: ") && !p.startsWith("Descuento: "));
+  const services: string[] = []; const software: string[] = []; const videogames: string[] = []; const repuestos: string[] = [];
   if (sP) sP.replace("Servicios: ", "").split(", ").forEach(nm => { if (svcList.find(s => s.name === nm)) services.push(nm); });
-  if (swP) swP.replace("Software: ", "").split(", ").forEach(nm => { if (nm.trim()) software.push(nm.trim()); });
+  if (swP) swP.replace("Programas: ", "").replace("Software: ", "").split(", ").forEach(nm => { if (nm.trim()) software.push(nm.trim()); });
+  if (vgP) vgP.replace("Videojuegos: ", "").split(", ").forEach(nm => { if (nm.trim()) videogames.push(nm.trim()); });
   if (rP) rP.replace("Repuestos: ", "").split(", ").forEach(nm => { if (nm.trim()) repuestos.push(nm.trim()); });
-  return { notes: rest.join(" | "), services, software, repuestos, deliveryNotes: dP ? dP.replace("Entrega: ", "") : "", discount: discP ? discP.replace("Descuento: ", "") : "" };
+  return { notes: rest.join(" | "), services, software, videogames, repuestos, deliveryNotes: dP ? dP.replace("Entrega: ", "") : "", discount: discP ? discP.replace("Descuento: ", "") : "" };
 }
 function greet(): string { const h = new Date().getHours(); return h < 12 ? "Buenos días" : h < 18 ? "Buenas tardes" : "Buenas noches"; }
 
 export default function AsignacionesPage() {
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ "recepcion": true, "documentos": false });
-  const toggleMenu = (key: string) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const [user, setUser] = useState<User | null>(null);
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,33 +73,11 @@ export default function AsignacionesPage() {
 
   const getBaseUrl = () => "https://degree-project.com";
 
-  const buildWhatsAppMsg = (repair: Repair, newStatus: string) => {
-    const st = STATUS[newStatus];
-    const base = getBaseUrl();
-    return [
-      `Estimado/a${repair.clientName ? ` *${repair.clientName}*` : ""},`,
-      ``,
-      `Nos comunicamos de *${settings.companyName}* para informarle sobre el estado de su equipo.`,
-      ``,
-      `📋 *Orden:* ${repair.code}`,
-      `💻 *Equipo:* ${repair.device}${repair.brand ? ` ${repair.brand}` : ""}${repair.model ? ` ${repair.model}` : ""}`,
-      `${st?.icon || "🔄"} *Nuevo estado:* ${st?.label || newStatus}`,
-      ``,
-      `Puede consultar el estado de su equipo en cualquier momento desde el siguiente enlace:`,
-      `🔗 ${base}/portal`,
-      ``,
-      `Ante cualquier consulta, no dude en comunicarse con nosotros.`,
-      ``,
-      `Atentamente,`,
-      `*${settings.companyName}*`,
-      `_${settings.slogan}_`,
-    ].join("\n");
-  };
 
   const advance = async (id: string, next: string) => {
     const tk = sessionStorage.getItem("token"); if (!tk) return;
     try { const r = await apiFetch(`/api/repairs/${id}`, { method: "PATCH", body: JSON.stringify({ status: next }) });
-      if (r.ok) { sileo.success({ title: `${STATUS[next]?.label}` }); const repair = repairs.find(rep => rep.id === id); if (repair?.clientPhone) { sendWhatsApp(repair.clientPhone, buildWhatsAppMsg(repair, next)); } await load(tk); } else sileo.error({ title: "Error" });
+      if (r.ok) { sileo.success({ title: `${STATUS[next]?.label}` }); await load(tk); } else sileo.error({ title: "Error" });
     } catch { sileo.error({ title: "Sin conexión" }); }
   };
 
@@ -122,16 +99,19 @@ export default function AsignacionesPage() {
         @keyframes slideIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
         @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes fadeScale{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
-        .sb{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border-radius:10px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-muted);transition:.15s;text-align:left}
-        .sb:hover{background:rgba(99,102,241,.06);color:var(--text-secondary)}.sb.on{background:rgba(99,102,241,.12);color:#818cf8}
-        .sbi{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+        .assignments-main{max-width:1240px;margin:0 auto;padding:28px 24px}
+        .asig-row{display:flex;align-items:center;gap:12px}
+        .asig-device{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .asig-client,.asig-status,.asig-next,.asig-arrow{flex-shrink:0}
+        .asig-detail-grid{display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:12px}
+        .asig-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
         .sidebar-group-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 10px;border-radius:8px;border:none;font-size:9px;font-weight:700;cursor:pointer;background:transparent;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;transition:.15s;text-align:left}
         .sidebar-group-btn:hover{background:rgba(99,102,241,.04);color:var(--text-secondary)}
         .group-arrow{font-size:11px;transition:transform .2s;color:var(--text-muted)}
         .sidebar-group-btn.open .group-arrow{transform:rotate(180deg)}
         .sidebar-sub-list{overflow:hidden;max-height:0;transition:max-height .25s ease}
         .sidebar-sub-list.open{max-height:200px}
-        .sb.sub{padding-left:22px}
+        .sidebar-btn.sidebar-sub{padding-left:22px}
         .chip{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:600}
         .abtn{transition:.15s}.abtn:hover{filter:brightness(1.15);transform:scale(1.02)}
       
@@ -141,7 +121,16 @@ export default function AsignacionesPage() {
           .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important}
           .mobile-header{display:flex!important}
           .sidebar-overlay{display:block!important}
-          [style*="grid-template-columns"]{grid-template-columns:1fr!important}
+          .stats-grid{grid-template-columns:repeat(2,1fr)!important}
+          .assignments-main{padding:24px 18px !important}
+          .asig-detail-grid,.asig-info-grid{grid-template-columns:1fr !important}
+          .asig-row{flex-wrap:wrap;align-items:flex-start !important}
+          .asig-device{flex-basis:calc(100% - 52px);white-space:normal !important;line-height:1.35}
+          .asig-client{margin-left:52px;font-size:10px !important;width:calc(100% - 52px)}
+          .asig-next{margin-left:52px;width:calc(100% - 52px)}
+          .asig-next button,.asig-next span{width:100%;justify-content:center;text-align:center}
+          .asig-status{margin-left:auto}
+          .asig-arrow{display:none}
           .stats-grid{grid-template-columns:repeat(2,1fr)!important}
           .card-compact{flex-direction:column!important}
           .card-img{width:100%!important;min-height:160px!important;max-height:200px!important}
@@ -149,52 +138,25 @@ export default function AsignacionesPage() {
           .msg-layout{grid-template-columns:1fr!important}
           .filter-btns{overflow-x:auto;-webkit-overflow-scrolling:touch}
         }
+        @media(max-width:768px){
+          .stats-grid{grid-template-columns:1fr!important}
+          .assignments-main{padding:20px 12px !important}
+          .chip{font-size:9px!important;padding:3px 7px!important}
+          .filter-btns{padding-bottom:4px}
+          .asig-row{gap:10px}
+          .asig-device{font-size:12px !important}
+          .asig-client{margin-left:0;width:100%}
+          .asig-next{margin-left:0;width:100%}
+          [style*="width: 160px; height: 110px"]{width:120px!important;height:84px!important}
+        }
       `}</style>
 
       
       {/* MOBILE HEADER */}
-      <div className="mobile-header" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "rgba(12,12,18,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--border)", alignItems: "center", padding: "0 16px", zIndex: 50, gap: 12 }}>
-        <button onClick={() => setMenuOpen(!menuOpen)} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", color: "#818cf8" }}>{menuOpen ? "✕" : "☰"}</button>
-        <span style={{ fontWeight: 800, fontSize: 15 }}>{settings.companyName}</span>
-      </div>
-      {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 44 }} />}
-
-      {/* SIDEBAR */}
-      <aside className={`sidebar-desktop${menuOpen ? " open" : ""}`} style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 200, transition: "transform 0.3s ease", background: "rgba(12,12,18,.95)", backdropFilter: "blur(20px)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", zIndex: 45, padding: "0 10px" }}>
-        <div style={{ padding: "18px 14px 20px", borderBottom: "1px solid var(--border)", marginBottom: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#6366f1,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, boxShadow: "0 0 20px rgba(99,102,241,.2)", flexShrink: 0 }}>🔧</div>
-            <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>{settings.companyName}</span>
-          </div>
-        </div>
-        <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflow: "auto", padding: "4px 0" }}>
-          {/* Recepción */}
-            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
-            <button key="/asignaciones" className={`sb sub on`} onClick={() => { setMenuOpen(false); router.push("/asignaciones"); }}><div className="sbi" style={{ background: "rgba(99,102,241,0.15)" }}>📋</div>Mis Asignaciones</button>
-            <button key="/scanner" className={`sb sub`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sbi" style={{ background: "transparent" }}>📷</div>Escáner</button>
-            </div>
-            {/* Documentos */}
-            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
-            <button key="/quotations" className={`sb sub`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sbi" style={{ background: "transparent" }}>🧾</div>Cotizaciones</button>
-            <button key="/certificates" className={`sb sub`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sbi" style={{ background: "transparent" }}>🏅</div>Certificados</button>
-            </div>
-        </nav>
-        <div style={{ borderTop: "1px solid var(--border)", padding: "12px 6px" }}>
-          <div style={{ padding: "14px 10px", marginBottom: 8, background: "rgba(99,102,241,.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,.08)", textAlign: "center" }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#6366f1,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: "#fff", margin: "0 auto 8px", boxShadow: "0 4px 14px rgba(99,102,241,.3)" }}>
-              {user?.image ? <img src={user.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 14 }} /> : user?.name ? user.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() : "?"}
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.4, wordBreak: "break-word", marginBottom: 6 }}>{user?.name}</div>
-            <div style={{ display: "inline-block", fontSize: 9, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: ".5px", padding: "3px 10px", borderRadius: 8, background: "rgba(99,102,241,.1)", border: "1px solid rgba(99,102,241,.15)" }}>🔧 Técnico</div>
-          </div>
-          <button onClick={() => { apiFetch("/api/auth/logout", { method: "POST" }).then(() => { sessionStorage.removeItem("token"); sessionStorage.removeItem("user"); router.push("/"); }); }} style={{ width: "100%", padding: "9px 14px", background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.12)", borderRadius: 10, color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>🚪 Cerrar Sesión</button>
-        </div>
-      </aside>
+      <AppSidebar user={user} />
 
       {/* CONTENIDO */}
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "28px 24px" }}>
+      <div className="assignments-main">
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px" }}>{greet()}, {user?.name?.split(" ")[0]} 👋</h1>
           <p style={{ color: "var(--text-muted)", fontSize: 13, marginTop: 3 }}>Tus órdenes de trabajo asignadas</p>
@@ -241,20 +203,20 @@ export default function AsignacionesPage() {
               return (
                 <div key={r.id} onClick={() => setExpanded(isOpen ? null : r.id)} style={{ background: "var(--bg-card)", borderRadius: 14, border: `1px solid ${isOpen ? s.color + "30" : "var(--border)"}`, cursor: "pointer", transition: ".25s", animation: `fadeIn .3s ease-out ${i * .03}s both`, overflow: "hidden" }}>
                   {/* FILA COMPACTA */}
-                  <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", gap: 12 }}>
+                  <div className="asig-row" style={{ padding: "10px 16px" }}>
                     <div style={{ width: 40, height: 40, borderRadius: 10, overflow: "hidden", flexShrink: 0, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, border: `1px solid ${s.color}15` }}>
                       {imgs[0] ? <img src={imgs[0]} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : s.icon}
                     </div>
                     <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,.07)", padding: "2px 7px", borderRadius: 5, flexShrink: 0 }}>{r.code}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dev}</span>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>👤 {r.clientName || "—"}</span>
+                    <span className="asig-device" style={{ fontSize: 13, fontWeight: 700 }}>{dev}</span>
+                    <span className="asig-client" style={{ fontSize: 11, color: "var(--text-muted)" }}>👤 {r.clientName || "—"}</span>
                     {next ? (
-                      <button className="abtn" onClick={e => { e.stopPropagation(); advance(r.id, next); }} style={{ padding: "7px 14px", background: `linear-gradient(135deg,${STATUS[next].color},${STATUS[next].color}bb)`, border: "none", borderRadius: 8, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: `0 3px 12px ${STATUS[next].color}25`, whiteSpace: "nowrap" }}>{STATUS[next].icon} {STATUS[next].label} ▸</button>
+                      <div className="asig-next"><button className="abtn" onClick={e => { e.stopPropagation(); advance(r.id, next); }} style={{ padding: "7px 14px", background: `linear-gradient(135deg,${STATUS[next].color},${STATUS[next].color}bb)`, border: "none", borderRadius: 8, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: `0 3px 12px ${STATUS[next].color}25`, whiteSpace: "nowrap", display: "flex", alignItems: "center" }}>{STATUS[next].icon} {STATUS[next].label} ▸</button></div>
                     ) : r.status === "completed" ? (
-                      <span style={{ padding: "7px 14px", background: "rgba(16,185,129,.07)", borderRadius: 8, border: "1px solid rgba(16,185,129,.15)", color: "#10b981", fontSize: 10, fontWeight: 700 }}>✅ Listo</span>
+                      <div className="asig-next"><span style={{ padding: "7px 14px", background: "rgba(16,185,129,.07)", borderRadius: 8, border: "1px solid rgba(16,185,129,.15)", color: "#10b981", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>✅ Listo</span></div>
                     ) : null}
-                    <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 10, fontWeight: 600, color: s.color, background: s.bg, flexShrink: 0 }}>{s.icon} {s.label}</span>
-                    <span style={{ fontSize: 14, color: "var(--text-muted)", transform: isOpen ? "rotate(90deg)" : "none", transition: ".2s", flexShrink: 0 }}>▸</span>
+                    <span className="asig-status" style={{ padding: "4px 10px", borderRadius: 8, fontSize: 10, fontWeight: 600, color: s.color, background: s.bg }}>{s.icon} {s.label}</span>
+                    <span className="asig-arrow" style={{ fontSize: 14, color: "var(--text-muted)", transform: isOpen ? "rotate(90deg)" : "none", transition: ".2s" }}>▸</span>
                   </div>
                   {/* Barra mini */}
                   <div style={{ height: 2, background: "var(--bg-tertiary)" }}><div style={{ height: "100%", width: `${((ci + 1) / STEPS.length) * 100}%`, background: s.color, transition: "width .4s", borderRadius: 1 }} /></div>
@@ -266,11 +228,11 @@ export default function AsignacionesPage() {
                       {imgs.length > 0 && (<div style={{ display: "flex", gap: 8, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>{imgs.map((img, idx) => (<div key={idx} onClick={e => { e.stopPropagation(); setViewImg(img); }} style={{ width: 160, height: 110, borderRadius: 8, overflow: "hidden", cursor: "pointer", border: "1px solid var(--border)", flexShrink: 0, position: "relative" }}><img src={img} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /><span style={{ position: "absolute", bottom: 3, left: 5, fontSize: 8, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "1px 5px", borderRadius: 3 }}>{idx + 1}/{imgs.length}</span></div>))}</div>)}
 
                       {/* ═══ LAYOUT: [CLIENTE+EQUIPO | SEGUIMIENTO] + [DETALLES] ═══ */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, marginBottom: 12 }}>
+                      <div className="asig-detail-grid">
                         {/* COLUMNA IZQUIERDA */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
                           {/* FILA: CLIENTE | EQUIPO */}
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          <div className="asig-info-grid">
                             {/* CLIENTE */}
                             <div style={{ background: "var(--bg-tertiary)", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(99,102,241,0.15)", borderLeft: "3px solid #6366f1" }}>
                               <div style={{ padding: "8px 14px", background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(99,102,241,0.03))", borderBottom: "1px solid rgba(99,102,241,0.1)", display: "flex", alignItems: "center", gap: 6 }}><span style={{ fontSize: 13 }}>👤</span><span style={{ fontSize: 10, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Cliente</span></div>
@@ -296,7 +258,8 @@ export default function AsignacionesPage() {
                               {r.issue && (<div style={{ padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8, border: "1px solid var(--border)" }}><div style={{ fontSize: 8, color: s.color, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px" }}>⚠️ Problema</div><div style={{ fontSize: 11, marginTop: 3, color: "var(--text-primary)", lineHeight: 1.4 }}>{r.issue}</div></div>)}
                               {p.notes && (<div style={{ padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8, border: "1px solid var(--border)" }}><div style={{ fontSize: 8, color: "#f59e0b", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px" }}>📝 Observaciones</div><div style={{ fontSize: 11, marginTop: 3, color: "var(--text-secondary)", lineHeight: 1.4 }}>{p.notes}</div></div>)}
                               {p.services.length > 0 && (<div style={{ padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8, border: "1px solid var(--border)" }}><div style={{ fontSize: 8, color: "#a855f7", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px", marginBottom: 4 }}>Servicios</div><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{p.services.map(name => { const sv = svcList.find(x => x.name === name); return <span key={name} style={{ padding: "2px 7px", background: "rgba(168,85,247,0.1)", borderRadius: 4, fontSize: 9, fontWeight: 600, color: "#a855f7" }}>{sv?.icon} {name}</span>; })}</div></div>)}
-                              {p.software.length > 0 && (<div style={{ padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8, border: "1px solid var(--border)" }}><div style={{ fontSize: 8, color: "#8b5cf6", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px", marginBottom: 4 }}>🎮 Software</div><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{p.software.map(name => <span key={name} style={{ padding: "2px 7px", background: "rgba(139,92,246,0.1)", borderRadius: 4, fontSize: 9, fontWeight: 600, color: "#8b5cf6" }}>{name}</span>)}</div></div>)}
+                              {p.software.length > 0 && (<div style={{ padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8, border: "1px solid var(--border)" }}><div style={{ fontSize: 8, color: "#8b5cf6", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px", marginBottom: 4 }}>💿 Programas</div><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{p.software.map(name => <span key={name} style={{ padding: "2px 7px", background: "rgba(139,92,246,0.1)", borderRadius: 4, fontSize: 9, fontWeight: 600, color: "#8b5cf6" }}>{name}</span>)}</div></div>)}
+                              {p.videogames.length > 0 && (<div style={{ padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8, border: "1px solid var(--border)" }}><div style={{ fontSize: 8, color: "#ef4444", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px", marginBottom: 4 }}>🎮 Videojuegos</div><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{p.videogames.map(name => <span key={name} style={{ padding: "2px 7px", background: "rgba(239,68,68,0.1)", borderRadius: 4, fontSize: 9, fontWeight: 600, color: "#ef4444" }}>{name}</span>)}</div></div>)}
                               {p.repuestos.length > 0 && (<div style={{ padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8, border: "1px solid var(--border)" }}><div style={{ fontSize: 8, color: "#f59e0b", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px", marginBottom: 4 }}>📦 Repuestos</div><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{p.repuestos.map(name => <span key={name} style={{ padding: "2px 7px", background: "rgba(245,158,11,0.1)", borderRadius: 4, fontSize: 9, fontWeight: 600, color: "#f59e0b" }}>{name}</span>)}</div></div>)}
                               {p.deliveryNotes && (<div style={{ padding: "8px 10px", background: "var(--bg-hover)", borderRadius: 8, border: "1px solid rgba(107,114,128,0.2)" }}><div style={{ fontSize: 8, color: "#6b7280", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px" }}>📋 Notas de Entrega</div><div style={{ fontSize: 11, marginTop: 3, color: "var(--text-secondary)", lineHeight: 1.4 }}>{p.deliveryNotes}</div></div>)}
                               {Number(p.discount) > 0 && (<div style={{ padding: "8px 10px", background: "rgba(239,68,68,0.04)", borderRadius: 8, border: "1px solid rgba(239,68,68,0.15)" }}><div style={{ fontSize: 8, color: "#ef4444", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.3px" }}>🏷️ Descuento</div><div style={{ fontSize: 13, marginTop: 3, color: "#ef4444", fontWeight: 700 }}>- Bs. {p.discount}</div></div>)}

@@ -102,7 +102,7 @@ export default function EquipmentFichaPrintPage() {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #fff; }
         @media print {
-          @page { size: A4 portrait; margin: 8mm; }
+          @page { size: letter portrait; margin: 8mm; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
           .ficha-content { padding: 0 !important; max-width: none !important; }
@@ -210,7 +210,7 @@ export default function EquipmentFichaPrintPage() {
         );
       })() : (
 
-      /* Ficha — A4 portrait */
+      /* Ficha — letter portrait */
       <div className="ficha-content" style={{ maxWidth: 780, margin: "0 auto", padding: "24px 20px" }}>
         <div className="ficha-page" style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 8, padding: "18px 22px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
 

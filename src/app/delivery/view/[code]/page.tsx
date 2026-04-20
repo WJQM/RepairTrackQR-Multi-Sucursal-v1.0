@@ -11,12 +11,12 @@ interface Repair {
 }
 
 function parseAccWithDetail(raw: string): { name: string; detail: string } { const match = raw.match(/^(.+?)\s*\((.+)\)$/); if (match) return { name: match[1].trim(), detail: match[2].trim() }; return { name: raw.trim(), detail: "" }; }
-function parseNotesAll(n: string | null): { notes: string; services: string[]; software: string[]; repuestos: string[]; deliveryNotes: string; discount: string } {
-  if (!n) return { notes: "", services: [], software: [], repuestos: [], deliveryNotes: "", discount: "" };
+function parseNotesAll(n: string | null): { notes: string; services: string[]; software: string[]; videogames: string[]; repuestos: string[]; deliveryNotes: string; discount: string } {
+  if (!n) return { notes: "", services: [], software: [], videogames: [], repuestos: [], deliveryNotes: "", discount: "" };
   const parts = n.split(" | ");
-  const svc = parts.find(p => p.startsWith("Servicios: ")); const sw = parts.find(p => p.startsWith("Software: ")); const rep = parts.find(p => p.startsWith("Repuestos: ")); const del = parts.find(p => p.startsWith("Entrega: ")); const disc = parts.find(p => p.startsWith("Descuento: "));
-  const rest = parts.filter(p => !p.startsWith("Servicios: ") && !p.startsWith("Software: ") && !p.startsWith("Repuestos: ") && !p.startsWith("Entrega: ") && !p.startsWith("Descuento: "));
-  return { notes: rest.join(" | "), services: svc ? svc.replace("Servicios: ", "").split(", ").filter(Boolean) : [], software: sw ? sw.replace("Software: ", "").split(", ").filter(Boolean) : [], repuestos: rep ? rep.replace("Repuestos: ", "").split(", ").filter(Boolean) : [], deliveryNotes: del ? del.replace("Entrega: ", "") : "", discount: disc ? disc.replace("Descuento: ", "") : "" };
+  const svc = parts.find(p => p.startsWith("Servicios: ")); const sw = parts.find(p => p.startsWith("Programas: ") || p.startsWith("Software: ")); const vg = parts.find(p => p.startsWith("Videojuegos: ")); const rep = parts.find(p => p.startsWith("Repuestos: ")); const del = parts.find(p => p.startsWith("Entrega: ")); const disc = parts.find(p => p.startsWith("Descuento: "));
+  const rest = parts.filter(p => !p.startsWith("Servicios: ") && !p.startsWith("Programas: ") && !p.startsWith("Software: ") && !p.startsWith("Videojuegos: ") && !p.startsWith("Repuestos: ") && !p.startsWith("Entrega: ") && !p.startsWith("Descuento: "));
+  return { notes: rest.join(" | "), services: svc ? svc.replace("Servicios: ", "").split(", ").filter(Boolean) : [], software: sw ? sw.replace("Programas: ", "").replace("Software: ", "").split(", ").filter(Boolean) : [], videogames: vg ? vg.replace("Videojuegos: ", "").split(", ").filter(Boolean) : [], repuestos: rep ? rep.replace("Repuestos: ", "").split(", ").filter(Boolean) : [], deliveryNotes: del ? del.replace("Entrega: ", "") : "", discount: disc ? disc.replace("Descuento: ", "") : "" };
 }
 function otToCe(otCode: string): string { return `CE-${otCode.replace(/^OT-/i, "")}`; }
 
@@ -57,7 +57,7 @@ export default function DeliveryFullPage() {
   return (
     <div style={{ background: "#fff", minHeight: "100vh" }}>
       <style>{`
-        @media print { @page { size: A4; margin: 12mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .print-content { padding-top: 0 !important; } }
+        @media print { @page { size: letter; margin: 12mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .print-content { padding-top: 0 !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; } body { background: #fff; }
       `}</style>
 

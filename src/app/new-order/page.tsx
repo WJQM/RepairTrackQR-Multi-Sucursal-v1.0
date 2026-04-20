@@ -3,43 +3,47 @@ import { sileo } from "@/lib/toast";
 import { apiFetch, getStoredAuth, getActiveBranchId, setActiveBranchId } from "@/lib/api";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { AppSidebar } from "@/components/AppSidebar";
 
 const ACCESSORIES_LIST = ["Cargador", "Batería", "Disco Duro", "Memoria RAM", "Cable de Poder", "Pantalla", "Tornillos", "Maletín/Bolsa", "Otros"];
 const ACCESSORIES_HINTS: Record<string, string> = { "Cargador": "Ej: 65W, USB-C, modelo...", "Batería": "Ej: 6 celdas, modelo...", "Disco Duro": "Ej: 500GB SSD, 1TB HDD...", "Memoria RAM": "Ej: 8GB DDR4, 16GB DDR5...", "Cable de Poder": "Ej: 3 pines, tipo...", "Pantalla": "Ej: 15.6\", táctil...", "Tornillos": "Ej: completo, incompleto, cantidad...", "Maletín/Bolsa": "Ej: color, tamaño...", "Otros": "Especificar qué accesorios..." };
 
 interface ServiceItem { id: string; name: string; price: number; icon: string; }
 interface SoftwareItem { id: string; name: string; category: string | null; image: string | null; }
+interface VideogameItem { id: string; name: string; platform: string | null; genre: string | null; image: string | null; }
 
 export default function NewOrderPage() {
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({"catalogo": false, "documentos": false, "admin": false, "recepcion": true});
-  const toggleMenu = (key: string) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const [branches, setBranches] = useState<{id:string;name:string}[]>([]);
   const [activeBranch, setActiveBranch] = useState<string>("");
   const [device, setDevice] = useState(""); const [brand, setBrand] = useState(""); const [model, setModel] = useState("");
   const [issue, setIssue] = useState(""); const [cost, setCost] = useState(""); const [notes, setNotes] = useState("");
   const [clientName, setClientName] = useState(""); const [clientPhone, setClientPhone] = useState("");
+  const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [uploading, setUploading] = useState(false); const [saving, setSaving] = useState(false);
   const [selectedAccessories, setSelectedAccessories] = useState<string[]>([]); const [accessoryDetails, setAccessoryDetails] = useState<Record<string, string>>({});
   const [selectedServices, setSelectedServices] = useState<string[]>([]); const [servicesList, setServicesList] = useState<ServiceItem[]>([]);
   const [selectedSoftware, setSelectedSoftware] = useState<string[]>([]); const [softwareList, setSoftwareList] = useState<SoftwareItem[]>([]);
+  const [selectedVideogames, setSelectedVideogames] = useState<string[]>([]); const [videogamesList, setVideogamesList] = useState<VideogameItem[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]); const [imagePreviews, setImagePreviews] = useState<string[]>([]);
  const fileInputRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<any>(null);
   const [technicianId, setTechnicianId] = useState("");
   const [techniciansList, setTechniciansList] = useState<{ id: string; name: string }[]>([]);
-  const [showServices, setShowServices] = useState(false); const [showSoftware, setShowSoftware] = useState(false);
-  const [searchServices, setSearchServices] = useState(""); const [searchSoftware, setSearchSoftware] = useState("");
+  const [showServices, setShowServices] = useState(false); const [showSoftware, setShowSoftware] = useState(false); const [showVideogames, setShowVideogames] = useState(false);
+  const [searchServices, setSearchServices] = useState(""); const [searchSoftware, setSearchSoftware] = useState(""); const [searchVideogames, setSearchVideogames] = useState("");
   const [settings, setSettings] = useState<{ companyName: string; logo: string | null }>({ companyName: "RepairTrackQR", logo: null });
   const toggleAcc = (acc: string) => { setSelectedAccessories(prev => { if (prev.includes(acc)) { setAccessoryDetails(d => { const copy = { ...d }; delete copy[acc]; return copy; }); return prev.filter(a => a !== acc); } return [...prev, acc]; }); };
   const updateDetail = (acc: string, detail: string) => { setAccessoryDetails(prev => ({ ...prev, [acc]: detail })); };
   const toggleService = (serviceName: string) => { setSelectedServices(prev => { const next = prev.includes(serviceName) ? prev.filter(s => s !== serviceName) : [...prev, serviceName]; const total = next.reduce((sum, name) => { const svc = servicesList.find(s => s.name === name); return sum + (svc?.price || 0); }, 0); setCost(String(total)); return next; }); };
   const toggleSoftware = (name: string) => { setSelectedSoftware(prev => prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]); };
+  const toggleVideogame = (name: string) => { setSelectedVideogames(prev => prev.includes(name) ? prev.filter(v => v !== name) : [...prev, name]); };
   const buildAccessoriesArray = (): string[] => { return selectedAccessories.map(acc => { const detail = accessoryDetails[acc]?.trim(); return detail ? `${acc} (${detail})` : acc; }); };
 
   const filteredServices = servicesList.filter(s => searchServices === "" || s.name.toLowerCase().includes(searchServices.toLowerCase()));
   const filteredSoftware = softwareList.filter(s => searchSoftware === "" || s.name.toLowerCase().includes(searchSoftware.toLowerCase()) || (s.category || "").toLowerCase().includes(searchSoftware.toLowerCase()));
+  const filteredVideogames = videogamesList.filter(v => searchVideogames === "" || v.name.toLowerCase().includes(searchVideogames.toLowerCase()) || (v.platform || "").toLowerCase().includes(searchVideogames.toLowerCase()) || (v.genre || "").toLowerCase().includes(searchVideogames.toLowerCase()));
 
   useEffect(() => {
     fetch("/api/settings").then(r => r.ok ? r.json() : null).then(d => { if (d) setSettings({ companyName: d.companyName, logo: d.logo }); }).catch(() => {});
@@ -54,14 +58,36 @@ export default function NewOrderPage() {
     if (parsedUser.role !== "admin" && parsedUser.role !== "superadmin") { router.push("/dashboard"); return; }
     apiFetch("/api/services").then(res => res.json()).then(data => { if (Array.isArray(data) && data.length > 0) setServicesList(data); }).catch(() => {});
     apiFetch("/api/software").then(res => res.json()).then(data => { if (Array.isArray(data) && data.length > 0) setSoftwareList(data); }).catch(() => {});
+    apiFetch("/api/videogames").then(res => res.json()).then(data => { if (Array.isArray(data) && data.length > 0) setVideogamesList(data); }).catch(() => {});
     apiFetch("/api/technicians", { }).then(res => res.json()).then(data => { if (Array.isArray(data)) setTechniciansList(data); }).catch(() => {});
     const savedForm = sessionStorage.getItem("newOrderForm");
-    if (savedForm) { try { const data = JSON.parse(savedForm); setDevice(data.device || ""); setBrand(data.brand || ""); setModel(data.model || ""); setIssue(data.issue || ""); setCost(data.cost || ""); setNotes(data.notes || ""); setClientName(data.clientName || ""); setClientPhone(data.clientPhone || ""); setSelectedAccessories(data.selectedAccessories || []); setAccessoryDetails(data.accessoryDetails || {}); setSelectedServices(data.selectedServices || []); setSelectedSoftware(data.selectedSoftware || []); setImageUrls(data.imageUrls || []); setImagePreviews(data.imagePreviews || []); } catch {} sessionStorage.removeItem("newOrderForm"); }
+    if (savedForm) { try { const data = JSON.parse(savedForm); setDevice(data.device || ""); setBrand(data.brand || ""); setModel(data.model || ""); setIssue(data.issue || ""); setCost(data.cost || ""); setNotes(data.notes || ""); setClientName(data.clientName || ""); setClientPhone(data.clientPhone || ""); setSelectedAccessories(data.selectedAccessories || []); setAccessoryDetails(data.accessoryDetails || {}); setSelectedServices(data.selectedServices || []); setSelectedSoftware(data.selectedSoftware || []); setSelectedVideogames(data.selectedVideogames || []); setImageUrls(data.imageUrls || []); setImagePreviews(data.imagePreviews || []); } catch {} sessionStorage.removeItem("newOrderForm"); }
     const capturedData = sessionStorage.getItem("capturedImage");
     if (capturedData) { try { const { url, preview } = JSON.parse(capturedData); setImageUrls(prev => [...prev, url]); setImagePreviews(prev => [...prev, preview]); sileo.success({ title: "Foto capturada" }); } catch {} sessionStorage.removeItem("capturedImage"); }
   }, []);
 
-  const saveFormToSession = () => { sessionStorage.setItem("newOrderForm", JSON.stringify({ device, brand, model, issue, cost, notes, clientName, clientPhone, selectedAccessories, accessoryDetails, selectedServices, selectedSoftware, imageUrls, imagePreviews })); };
+  const saveFormToSession = () => { sessionStorage.setItem("newOrderForm", JSON.stringify({ device, brand, model, issue, cost, notes, clientName, clientPhone, selectedAccessories, accessoryDetails, selectedServices, selectedSoftware, selectedVideogames, imageUrls, imagePreviews })); };
+
+  // Autocomplete de cliente: busca al escribir el teléfono o nombre
+  useEffect(() => {
+    const q = clientPhone.trim() || clientName.trim();
+    if (q.length < 3) { setClientSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiFetch(`/api/clients?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const d = await res.json();
+          setClientSuggestions((d.clients || []).slice(0, 5));
+        }
+      } catch {}
+    }, 300);
+    return () => clearTimeout(t);
+  }, [clientPhone, clientName]);
+
+  const pickSuggestion = (c: any) => {
+    setClientName(c.name); setClientPhone(c.phone);
+    setShowSuggestions(false); setClientSuggestions([]);
+  };
   const uploadFiles = async (files: FileList) => { setUploading(true); for (let i = 0; i < files.length; i++) { const file = files[i]; const reader = new FileReader(); reader.onload = (ev) => setImagePreviews(prev => [...prev, ev.target?.result as string]); reader.readAsDataURL(file); const formData = new FormData(); formData.append("file", file); try { const res = await apiFetch("/api/upload", { method: "POST", body: formData }); if (res.ok) { const data = await res.json(); setImageUrls(prev => [...prev, data.url]); } } catch {} } sileo.success({ title: `${files.length} imagen${files.length > 1 ? "es subidas" : " subida"}` }); setUploading(false); };
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => { const files = e.target.files; if (!files || files.length === 0) return; await uploadFiles(files); e.target.value = ""; };
   const handleTakePhoto = () => { saveFormToSession(); sessionStorage.setItem("cameraReturnUrl", "/new-order"); window.location.href = "/camera.html"; };
@@ -72,8 +98,9 @@ export default function NewOrderPage() {
     try {
       const imageData = imageUrls.length > 0 ? JSON.stringify(imageUrls) : null; const accArray = buildAccessoriesArray();
       const servicesNote = selectedServices.length > 0 ? `Servicios: ${selectedServices.join(", ")}` : "";
-      const softwareNote = selectedSoftware.length > 0 ? `Software: ${selectedSoftware.join(", ")}` : "";
-      const finalNotes = [notes, servicesNote, softwareNote].filter(Boolean).join(" | ");
+      const softwareNote = selectedSoftware.length > 0 ? `Programas: ${selectedSoftware.join(", ")}` : "";
+      const videogamesNote = selectedVideogames.length > 0 ? `Videojuegos: ${selectedVideogames.join(", ")}` : "";
+      const finalNotes = [notes, servicesNote, softwareNote, videogamesNote].filter(Boolean).join(" | ");
       const res = await apiFetch("/api/repairs", { method: "POST", body: JSON.stringify({ device, brand, model, issue, priority: "media", estimatedCost: parseFloat(cost) || 0, notes: finalNotes || null, clientName, clientPhone, clientEmail: "", image: imageData, accessories: accArray.length > 0 ? JSON.stringify(accArray) : null, technicianId: technicianId || null }) });
       if (res.ok) { const nr = await res.json(); sileo.success({ title: `Orden ${nr.code} creada` }); sessionStorage.removeItem("newOrderForm"); setTimeout(() => router.push("/dashboard"), 800); } else { sileo.error({ title: "Error al crear la orden" }); }
     } catch { sileo.error({ title: "Error de conexión" }); } setSaving(false);
@@ -109,82 +136,7 @@ export default function NewOrderPage() {
       `}</style>
 
       
-      {/* MOBILE HEADER */}
-      <div className="mobile-header" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "rgba(12,12,18,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--border)", alignItems: "center", padding: "0 16px", zIndex: 50, gap: 12 }}>
-        <button onClick={() => setMenuOpen(!menuOpen)} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", color: "#818cf8" }}>{menuOpen ? "✕" : "☰"}</button>
-        <span style={{ fontWeight: 800, fontSize: 15 }}>{settings.companyName}</span>
-      </div>
-      {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 44 }} />}
-
-      {/* ═══ SIDEBAR ═══ */}
-      <aside className={`sidebar-desktop${menuOpen ? " open" : ""}`} style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 200, transition: "transform 0.3s ease", background: "rgba(12,12,18,0.95)", backdropFilter: "blur(20px)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", zIndex: 45, padding: "0 10px" }}>
-        <div style={{ padding: "18px 14px 20px", borderBottom: "1px solid var(--border)", marginBottom: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {settings.logo ? <img src={settings.logo} alt="" style={{ width: 34, height: 34, borderRadius: 10, objectFit: "contain", flexShrink: 0 }} /> : <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #818cf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, boxShadow: "0 0 20px rgba(99,102,241,0.2)", flexShrink: 0 }}>🔧</div>}
-            <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>{settings.companyName}</span>
-          </div>
-        </div>
-        <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflow: "auto", padding: "4px 0" }}>
-
-          {/* Branch Selector for Superadmin */}
-          {user?.role === "superadmin" && branches.length > 0 && (
-            <div style={{ padding: "0 6px 12px", borderBottom: "1px solid rgba(99,102,241,0.1)", marginBottom: 4 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 7, display: "flex", alignItems: "center", gap: 5 }}>🏢 Sucursal activa</div>
-              <div style={{ position: "relative" }}>
-                <select value={activeBranch} onChange={(e) => { setActiveBranch(e.target.value); setActiveBranchId(e.target.value); window.location.reload(); }} style={{ width: "100%", padding: "9px 28px 9px 12px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", borderLeft: "2px solid #6366f1", borderRadius: "0 10px 10px 0", color: "#c7d2fe", fontSize: 12, fontWeight: 700, cursor: "pointer", outline: "none" }}>
-                  {branches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118", color: "#eeeef2" }}>{b.name}</option>)}
-                </select>
-                <span style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", color: "#6366f1", fontSize: 10, pointerEvents: "none" }}>▾</span>
-              </div>
-            </div>
-          )}
-          <>
-            {/* Standalone */}
-            {/* Recepción */}
-            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
-            <button key="/dashboard" className={`sidebar-btn sidebar-sub${true ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/dashboard"); }}><div className="sidebar-icon" style={{ background: true ? "rgba(99,102,241,0.15)" : "transparent" }}>📋</div>Panel Principal</button>
-            <button key="/scanner" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📷</div>Escáner</button>
-            </div>
-            {/* Catálogo */}
-            <button className={`sidebar-group-btn${openMenus.catalogo ? " open" : ""}`} onClick={() => toggleMenu("catalogo")} style={{ background: "rgba(251,191,36,0.08)", borderLeft: "2px solid #fbbf24", color: "#fbbf24", borderRadius: "0 8px 8px 0" }}><span>📂 Catálogo</span><span className="group-arrow" style={{ color: "#fbbf24" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.catalogo ? " open" : ""}`}>
-            <button key="/services" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/services"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🛠️</div>Servicios</button>
-            <button key="/inventory" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/inventory"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📦</div>Inventario</button>
-            <button key="/equipment" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/equipment"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💻</div>Equipos</button>
-            <button key="/software" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/software"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💿</div>Programas</button>
-            <button key="/videogames" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/videogames"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🎮</div>Videojuegos</button>
-            <button key="/consoles" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/consoles"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🕹️</div>Consolas</button>
-            </div>
-            {/* Documentos */}
-            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
-            <button key="/quotations" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🧾</div>Cotizaciones</button>
-            <button key="/extracto" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/extracto"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📊</div>Extracto</button>
-            <button key="/certificates" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏅</div>Certificados</button>
-            </div>
-            {/* Administración */}
-            {user?.role === "superadmin" && (<>
-            <button className={`sidebar-group-btn${openMenus.admin ? " open" : ""}`} onClick={() => toggleMenu("admin")} style={{ background: "rgba(248,113,113,0.08)", borderLeft: "2px solid #f87171", color: "#f87171", borderRadius: "0 8px 8px 0" }}><span>⚙️ Administración</span><span className="group-arrow" style={{ color: "#f87171" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.admin ? " open" : ""}`}>
-            <button key="/admin/users" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/users"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>👥</div>Usuarios</button>
-            <button key="/admin/branches" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/branches"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏢</div>Sucursales</button>
-            <button key="/admin/settings" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/settings"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>⚙️</div>Configuración</button>
-            </div>
-            </>)}
-            </>
-        </nav>
-        <div style={{ borderTop: "1px solid var(--border)", padding: "12px 6px" }}>
-          <div style={{ padding: "14px 10px", marginBottom: 8, background: "rgba(99,102,241,0.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,0.08)", textAlign: "center" }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg, #6366f1, #818cf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: "#fff", margin: "0 auto 8px", boxShadow: "0 4px 14px rgba(99,102,241,0.3)", overflow: "hidden", letterSpacing: "-0.5px" }}>
-              {user?.image ? <img src={user.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 14 }} /> : user?.name ? user.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() : "?"}
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.4, wordBreak: "break-word", marginBottom: 6 }}>{user?.name}</div>
-            <div style={{ display: "inline-block", fontSize: 9, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.5px", padding: "3px 10px", borderRadius: 8, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.15)" }}>{user?.role === "tech" ? "🔧 Técnico" : user?.role === "superadmin" ? "⭐ Super Admin" : "👤 Admin"}</div>
-          </div>
-          <button onClick={() => { apiFetch("/api/auth/logout", { method: "POST" }).then(() => { sessionStorage.removeItem("token"); sessionStorage.removeItem("user"); router.push("/"); }); }} style={{ width: "100%", padding: "9px 14px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 10, color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>🚪 Cerrar Sesión</button>
-        </div>
-      </aside>
+      <AppSidebar user={user} />
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "32px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 32, animation: "fadeIn 0.4s ease-out" }}>
@@ -213,12 +165,43 @@ export default function NewOrderPage() {
           </div>
 
           {/* CLIENTE */}
-          <div style={{ padding: "20px 24px", background: "var(--bg-card)", borderRadius: 16, border: "1px solid rgba(99,102,241,0.12)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#818cf8", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>👤 Datos del Cliente</div>
-            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <div><label style={labelStyle}>Nombre del cliente *</label><input value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Ej: Juan Pérez" required style={fieldStyle} /></div>
-              <div><label style={labelStyle}>Celular *</label><input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} placeholder="Ej: 70012345" required style={fieldStyle} /></div>
+          <div style={{ padding: "20px 24px", background: "var(--bg-card)", borderRadius: 16, border: "1px solid rgba(99,102,241,0.12)", position: "relative" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#818cf8", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+              👤 Datos del Cliente
+              {clientSuggestions.length > 0 && <span style={{ fontSize: 9, padding: "2px 8px", background: "rgba(16,185,129,0.12)", color: "#10b981", borderRadius: 6, fontWeight: 700 }}>💡 {clientSuggestions.length} cliente{clientSuggestions.length > 1 ? "s" : ""} frecuente{clientSuggestions.length > 1 ? "s" : ""}</span>}
             </div>
+            <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div style={{ position: "relative" }}>
+                <label style={labelStyle}>Nombre del cliente *</label>
+                <input value={clientName} onChange={(e) => { setClientName(e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} placeholder="Ej: Juan Pérez" required style={fieldStyle} />
+              </div>
+              <div style={{ position: "relative" }}>
+                <label style={labelStyle}>Celular *</label>
+                <input value={clientPhone} onChange={(e) => { setClientPhone(e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} placeholder="Ej: 70012345" required style={fieldStyle} />
+              </div>
+            </div>
+            {/* Dropdown sugerencias */}
+            {showSuggestions && clientSuggestions.length > 0 && (
+              <div style={{ marginTop: 10, background: "var(--bg-tertiary)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: 8, maxHeight: 220, overflow: "auto" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 8px 8px", borderBottom: "1px solid var(--border)", marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, color: "#10b981", textTransform: "uppercase", fontWeight: 700 }}>💡 Clientes frecuentes encontrados — click para autocompletar</span>
+                  <button type="button" onClick={() => setShowSuggestions(false)} style={{ fontSize: 9, padding: "2px 8px", background: "transparent", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-muted)", cursor: "pointer" }}>Ocultar</button>
+                </div>
+                {clientSuggestions.map((c: any) => (
+                  <div key={c.phoneKey} onClick={() => pickSuggestion(c)} style={{ padding: "8px 10px", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg,#6366f1,#818cf8)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{c.name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase()).join("") || "?"}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>{c.name}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "monospace" }}>📱 {c.phone}</div>
+                    </div>
+                    <div style={{ fontSize: 9, color: "var(--text-muted)", textAlign: "right" }}>
+                      <div style={{ color: "#6366f1", fontWeight: 700 }}>{c.totalRepairs} OTs</div>
+                      <div style={{ color: "#10b981", fontWeight: 700 }}>Bs. {(c.totalSpent || 0).toFixed(0)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ASIGNAR TÉCNICO */}
@@ -327,13 +310,13 @@ export default function NewOrderPage() {
             </div>
           )}
 
-          {/* SOFTWARE */}
+          {/* PROGRAMAS */}
           {softwareList.length > 0 && (
             <div style={{ padding: "20px 24px", background: "var(--bg-card)", borderRadius: 16, border: `1px solid ${showSoftware ? "rgba(139,92,246,0.25)" : "rgba(139,92,246,0.12)"}`, transition: "all 0.2s" }}>
               <div onClick={() => setShowSoftware(!showSoftware)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6", display: "flex", alignItems: "center", gap: 8 }}>🎮 Software a Instalar {selectedSoftware.length > 0 && <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "rgba(139,92,246,0.15)", color: "#a78bfa", fontWeight: 800 }}>{selectedSoftware.length}</span>}</div>
-                  <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>Selecciona el software a instalar</p>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6", display: "flex", alignItems: "center", gap: 8 }}>💿 Programas a Instalar {selectedSoftware.length > 0 && <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "rgba(139,92,246,0.15)", color: "#a78bfa", fontWeight: 800 }}>{selectedSoftware.length}</span>}</div>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>Selecciona los programas a instalar</p>
                 </div>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: showSoftware ? "rgba(139,92,246,0.15)" : "var(--bg-tertiary)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#8b5cf6", transition: "all 0.2s", transform: showSoftware ? "rotate(180deg)" : "none" }}>▾</div>
               </div>
@@ -346,7 +329,7 @@ export default function NewOrderPage() {
                 <div style={{ marginTop: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-tertiary)", borderRadius: 8, padding: "0 12px", border: "1px solid var(--border)", marginBottom: 12 }}>
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>🔍</span>
-                    <input value={searchSoftware} onChange={(e) => setSearchSoftware(e.target.value)} placeholder="Buscar software..." style={{ flex: 1, border: "none", background: "none", padding: "9px 0", color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
+                    <input value={searchSoftware} onChange={(e) => setSearchSoftware(e.target.value)} placeholder="Buscar programa..." style={{ flex: 1, border: "none", background: "none", padding: "9px 0", color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
                     {searchSoftware && <span onClick={() => setSearchSoftware("")} style={{ cursor: "pointer", fontSize: 11, color: "var(--text-muted)" }}>✕</span>}
                   </div>
                   <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, maxHeight: 280, overflow: "auto" }}>
@@ -357,7 +340,43 @@ export default function NewOrderPage() {
                       </div>
                     ); })}
                   </div>
-                  {filteredSoftware.length === 0 && <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>No se encontró software</div>}
+                  {filteredSoftware.length === 0 && <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>No se encontraron programas</div>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* VIDEOJUEGOS */}
+          {videogamesList.length > 0 && (
+            <div style={{ padding: "20px 24px", background: "var(--bg-card)", borderRadius: 16, border: `1px solid ${showVideogames ? "rgba(239,68,68,0.25)" : "rgba(239,68,68,0.12)"}`, transition: "all 0.2s" }}>
+              <div onClick={() => setShowVideogames(!showVideogames)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444", display: "flex", alignItems: "center", gap: 8 }}>🎮 Videojuegos a Instalar {selectedVideogames.length > 0 && <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "rgba(239,68,68,0.15)", color: "#f87171", fontWeight: 800 }}>{selectedVideogames.length}</span>}</div>
+                  <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>Selecciona los videojuegos a instalar</p>
+                </div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: showVideogames ? "rgba(239,68,68,0.15)" : "var(--bg-tertiary)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#ef4444", transition: "all 0.2s", transform: showVideogames ? "rotate(180deg)" : "none" }}>▾</div>
+              </div>
+              {selectedVideogames.length > 0 && !showVideogames && (
+                <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {selectedVideogames.map(name => <span key={name} style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444" }}>{name}</span>)}
+                </div>
+              )}
+              {showVideogames && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-tertiary)", borderRadius: 8, padding: "0 12px", border: "1px solid var(--border)", marginBottom: 12 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>🔍</span>
+                    <input value={searchVideogames} onChange={(e) => setSearchVideogames(e.target.value)} placeholder="Buscar videojuego..." style={{ flex: 1, border: "none", background: "none", padding: "9px 0", color: "var(--text-primary)", fontSize: 12, outline: "none" }} />
+                    {searchVideogames && <span onClick={() => setSearchVideogames("")} style={{ cursor: "pointer", fontSize: 11, color: "var(--text-muted)" }}>✕</span>}
+                  </div>
+                  <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, maxHeight: 280, overflow: "auto" }}>
+                    {filteredVideogames.map((vg) => { const active = selectedVideogames.includes(vg.name); return (
+                      <div key={vg.id} onClick={() => toggleVideogame(vg.name)} style={{ padding: "10px 12px", borderRadius: 10, cursor: "pointer", userSelect: "none", transition: "all 0.15s", border: `2px solid ${active ? "#ef4444" : "var(--border)"}`, background: active ? "rgba(239,68,68,0.1)" : "var(--bg-tertiary)", display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", border: active ? "none" : "2px solid var(--border)", background: active ? "#ef4444" : "transparent", color: "#fff", fontSize: 11, fontWeight: 800 }}>{active ? "✓" : ""}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 11, fontWeight: 600, color: active ? "#ef4444" : "var(--text-muted)", lineHeight: 1.3 }}>{vg.name}</div>{(vg.platform || vg.genre) && <div style={{ fontSize: 9, color: active ? "#f87171" : "var(--text-muted)", marginTop: 1 }}>{[vg.platform, vg.genre].filter(Boolean).join(" · ")}</div>}</div>
+                      </div>
+                    ); })}
+                  </div>
+                  {filteredVideogames.length === 0 && <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>No se encontraron videojuegos</div>}
                 </div>
               )}
             </div>
@@ -380,11 +399,19 @@ export default function NewOrderPage() {
               )}
             </div>
             <div style={{ padding: "20px 24px", background: "var(--bg-card)", borderRadius: 16, border: "1px solid rgba(139,92,246,0.12)" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>🎮 Software</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>💿 Programas</div>
               {selectedSoftware.length === 0 ? (
-                <div style={{ padding: "12px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}><div style={{ fontSize: 24, marginBottom: 4, opacity: 0.3 }}>🎮</div>Sin software</div>
+                <div style={{ padding: "12px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}><div style={{ fontSize: 24, marginBottom: 4, opacity: 0.3 }}>💿</div>Sin programas</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>{selectedSoftware.map(name => (<div key={name} style={{ padding: "5px 8px", background: "rgba(139,92,246,0.06)", borderRadius: 6, border: "1px solid rgba(139,92,246,0.1)" }}><span style={{ fontSize: 11, fontWeight: 600, color: "#8b5cf6" }}>{name}</span></div>))}</div>
+              )}
+            </div>
+            <div style={{ padding: "20px 24px", background: "var(--bg-card)", borderRadius: 16, border: "1px solid rgba(239,68,68,0.12)" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#ef4444", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>🎮 Videojuegos</div>
+              {selectedVideogames.length === 0 ? (
+                <div style={{ padding: "12px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 11 }}><div style={{ fontSize: 24, marginBottom: 4, opacity: 0.3 }}>🎮</div>Sin videojuegos</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>{selectedVideogames.map(name => (<div key={name} style={{ padding: "5px 8px", background: "rgba(239,68,68,0.06)", borderRadius: 6, border: "1px solid rgba(239,68,68,0.1)" }}><span style={{ fontSize: 11, fontWeight: 600, color: "#ef4444" }}>{name}</span></div>))}</div>
               )}
             </div>
           </div>

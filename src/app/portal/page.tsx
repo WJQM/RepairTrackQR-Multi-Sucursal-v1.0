@@ -1,5 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import { PortalTracker } from "@/components/PortalTracker";
+import { PortalControls } from "@/components/PortalControls";
+import { usePortalI18n } from "@/lib/use-portal";
 
 interface InventoryItem {
   id: string; name: string; category: string | null; quantity: number;
@@ -90,6 +93,7 @@ const CONSOLE_CONDITIONS: Record<string, { label: string; icon: string; color: s
 };
 
 export default function PortalPage() {
+  const { t } = usePortalI18n();
   const [tab, setTab] = useState<"inventory" | "software" | "videogames" | "consoles" | "equipment">("inventory");
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [software, setSoftware] = useState<SoftwareItem[]>([]);
@@ -183,6 +187,25 @@ export default function PortalPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedEq, viewImage]);
+
+  // Bloquear scroll del body cuando un modal está abierto
+  useEffect(() => {
+    const anyModalOpen = !!(selectedSw || selectedVg || selectedCn || selectedEq || viewImage);
+    if (anyModalOpen) {
+      // Calcular el ancho de la barra de scroll para compensar y evitar saltos
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      const prevOverflow = document.body.style.overflow;
+      const prevPaddingRight = document.body.style.paddingRight;
+      document.body.style.overflow = "hidden";
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        document.body.style.paddingRight = prevPaddingRight;
+      };
+    }
+  }, [selectedSw, selectedVg, selectedCn, selectedEq, viewImage]);
 
   const handleQrResult = (decodedText: string) => {
     const detected = detectQR(decodedText);
@@ -525,6 +548,8 @@ export default function PortalPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)", position: "relative", overflow: "hidden" }}>
+      <PortalTracker />
+      <PortalControls />
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
@@ -538,7 +563,7 @@ export default function PortalPage() {
         .cat-chip:hover { border-color: rgba(99,102,241,0.3); color: var(--text-secondary); }
         .cat-chip.active { background: rgba(99,102,241,0.12); color: #818cf8; border-color: rgba(99,102,241,0.3); }
         .skeleton { background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12px; }
-        @media(max-width:768px) {
+        @media(max-width:1024px) {
           .portal-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
           .portal-header-content { flex-direction: column; text-align: center; }
           .portal-header-content h1 { font-size: 22px !important; }
@@ -577,7 +602,7 @@ export default function PortalPage() {
 
 
       {/* Main content */}
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "40px 20px 60px", opacity: mounted ? 1 : 0, transform: mounted ? "translateY(0)" : "translateY(20px)", transition: "all 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "32px 18px 56px", opacity: mounted ? 1 : 0, transition: "opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
 
         {/* Welcome Hero */}
         <div style={{ borderRadius: 24, border: "1px solid rgba(99,102,241,0.15)", background: "linear-gradient(135deg, rgba(99,102,241,0.07) 0%, rgba(139,92,246,0.04) 50%, rgba(16,185,129,0.04) 100%)", padding: "36px 32px", marginBottom: 28, position: "relative", overflow: "hidden" }}>
@@ -590,20 +615,23 @@ export default function PortalPage() {
               ? <img src={settings.logo} alt="Logo" style={{ width: 64, height: 64, borderRadius: 18, objectFit: "contain", flexShrink: 0, boxShadow: "0 8px 30px rgba(99,102,241,0.25)" }} />
               : <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, boxShadow: "0 8px 30px rgba(99,102,241,0.3)", flexShrink: 0 }}>🛠️</div>}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>Bienvenido al portal</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>{t("hero.welcome")}</div>
               <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, background: "linear-gradient(135deg, #eeeef2 30%, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{settings.companyName}</h1>
-              <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 5, lineHeight: 1.5 }}>{settings.slogan || "Tu servicio técnico de confianza"}</p>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 5, lineHeight: 1.5 }}>{settings.slogan || t("hero.slogan")}</p>
             </div>
           </div>
 
           {/* Feature pills */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", position: "relative" }}>
             {[
-              { icon: "📋", label: "Seguimiento de reparaciones", color: "#6366f1", bg: "rgba(99,102,241,0.1)", border: "rgba(99,102,241,0.2)" },
-              { icon: "📄", label: "Consulta tus documentos", color: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)" },
-              { icon: "🧾", label: "Cotizaciones y notas de venta", color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" },
-              { icon: "📦", label: "Catálogo de productos", color: "#a855f7", bg: "rgba(168,85,247,0.08)", border: "rgba(168,85,247,0.2)" },
-              { icon: "💻", label: "Laptops y PCs a la venta", color: "#06b6d4", bg: "rgba(6,182,212,0.08)", border: "rgba(6,182,212,0.2)" },
+              { icon: "📋", label: t("features.tracking"), color: "#6366f1", bg: "rgba(99,102,241,0.1)", border: "rgba(99,102,241,0.2)" },
+              { icon: "📄", label: t("features.documents"), color: "#10b981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)" },
+              { icon: "🧾", label: t("features.quotes"), color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" },
+              { icon: "📦", label: t("features.catalog"), color: "#a855f7", bg: "rgba(168,85,247,0.08)", border: "rgba(168,85,247,0.2)" },
+              { icon: "💿", label: t("features.software"), color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.2)" },
+              { icon: "🎮", label: t("features.games"), color: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)" },
+              { icon: "🕹️", label: t("features.consoles"), color: "#f97316", bg: "rgba(249,115,22,0.08)", border: "rgba(249,115,22,0.2)" },
+              { icon: "💻", label: t("features.laptops"), color: "#06b6d4", bg: "rgba(6,182,212,0.08)", border: "rgba(6,182,212,0.2)" },
             ].map(f => (
               <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 10, background: f.bg, border: `1px solid ${f.border}` }}>
                 <span style={{ fontSize: 14 }}>{f.icon}</span>
@@ -618,8 +646,8 @@ export default function PortalPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <span style={{ fontSize: 22 }}>📍</span>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#10b981" }}>Consultar Documento</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Escanea cualquier QR o ingresa el código manualmente</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#10b981" }}>{t("consult.title")}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{t("consult.subtitle")}</div>
             </div>
           </div>
 
@@ -632,6 +660,7 @@ export default function PortalPage() {
               { prefix: "NV-#", label: "Nota de Venta", color: "#a855f7", icon: "💰" },
               { prefix: "CL-#", label: "Licencia", color: "#ec4899", icon: "🏅" },
               { prefix: "EQ-#", label: "Equipo", color: "#06b6d4", icon: "💻" },
+              { prefix: "CN-#", label: "Consola", color: "#f97316", icon: "🕹️" },
             ].map(doc => (
               <span key={doc.prefix} style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 8, background: `${doc.color}12`, color: doc.color, border: `1px solid ${doc.color}20`, display: "inline-flex", alignItems: "center", gap: 4 }}>
                 {doc.icon} {doc.prefix}
@@ -641,12 +670,12 @@ export default function PortalPage() {
 
           <div className="portal-track-actions" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button onClick={startScanner} style={{ padding: "12px 22px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, flex: "1 1 auto", justifyContent: "center" }}>
-              📷 Escanear QR
+              📷 {t("consult.scan")}
             </button>
             <div style={{ display: "flex", flex: "1 1 auto", gap: 8 }}>
               <input
                 id="trackInput"
-                placeholder="OT-1, CE-1, COT-1, NV-1, CL-1, EQ-XXXXXX..."
+                placeholder={t("consult.placeholder")}
                 style={{ flex: 1, padding: "12px 16px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 12, color: "var(--text-primary)", fontSize: 14, outline: "none", minWidth: 120, fontFamily: "monospace", fontWeight: 600 }}
                 onKeyDown={(e) => { if (e.key === "Enter") { const v = (e.target as HTMLInputElement).value.trim(); if (v) handleQrResult(v); } }}
               />
@@ -654,7 +683,7 @@ export default function PortalPage() {
                 onClick={() => { const el = document.getElementById("trackInput") as HTMLInputElement; if (el?.value.trim()) handleQrResult(el.value.trim()); }}
                 disabled={navigating}
                 style={{ padding: "12px 20px", background: "linear-gradient(135deg, #10b981, #059669)", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: navigating ? "wait" : "pointer", whiteSpace: "nowrap", opacity: navigating ? 0.7 : 1 }}
-              >{navigating ? "..." : "Buscar"}</button>
+              >{navigating ? "..." : t("consult.search")}</button>
             </div>
           </div>
 
@@ -665,7 +694,7 @@ export default function PortalPage() {
           )}
           {navigating && (
             <div style={{ marginTop: 12, textAlign: "center", padding: 8 }}>
-              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Buscando documento...</p>
+              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{t("consult.searching")}</p>
             </div>
           )}
         </div>
@@ -726,19 +755,19 @@ export default function PortalPage() {
         <div className="portal-top-bar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className={`tab-btn${tab === "inventory" ? " active" : ""}`} onClick={() => { setTab("inventory"); setSearch(""); setCategoryFilter("all"); setBranchFilter("all"); setPageInv(1); setPageSw(1); setPageVg(1); setPageCn(1); setPageEq(1); }}>
-              📦 Productos <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({inventory.filter(i => i.quantity > 0).length})</span>
+              📦 {t("tabs.products")} <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({inventory.filter(i => i.quantity > 0).length})</span>
             </button>
             <button className={`tab-btn${tab === "software" ? " active" : ""}`} onClick={() => { setTab("software"); setSearch(""); setCategoryFilter("all"); setBranchFilter("all"); setPageInv(1); setPageSw(1); setPageVg(1); setPageCn(1); setPageEq(1); }}>
-              💿 Programas <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({software.length})</span>
+              💿 {t("tabs.software")} <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({software.length})</span>
             </button>
             <button className={`tab-btn${tab === "videogames" ? " active" : ""}`} onClick={() => { setTab("videogames"); setSearch(""); setCategoryFilter("all"); setBranchFilter("all"); setPageInv(1); setPageSw(1); setPageVg(1); setPageCn(1); setPageEq(1); }}>
-              🎮 Videojuegos <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({videogames.length})</span>
+              🎮 {t("tabs.games")} <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({videogames.length})</span>
             </button>
             <button className={`tab-btn${tab === "consoles" ? " active" : ""}`} onClick={() => { setTab("consoles"); setSearch(""); setCategoryFilter("all"); setBranchFilter("all"); setPageInv(1); setPageSw(1); setPageVg(1); setPageCn(1); setPageEq(1); }}>
-              🕹️ Consolas <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({consoles.filter(c => c.condition === "disponible").length})</span>
+              🕹️ {t("tabs.consoles")} <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({consoles.filter(c => c.condition === "disponible").length})</span>
             </button>
             <button className={`tab-btn${tab === "equipment" ? " active" : ""}`} onClick={() => { setTab("equipment"); setSearch(""); setCategoryFilter("all"); setBranchFilter("all"); setPageInv(1); setPageSw(1); setPageVg(1); setPageCn(1); setPageEq(1); }}>
-              💻 Equipos <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({equipment.filter(e => e.condition === "disponible").length})</span>
+              💻 {t("tabs.equipment")} <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>({equipment.filter(e => e.condition === "disponible").length})</span>
             </button>
           </div>
           <div className="portal-search" style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-tertiary)", borderRadius: 12, padding: "0 14px", border: "1px solid var(--border)", width: 300 }}>
@@ -790,16 +819,16 @@ export default function PortalPage() {
             {filteredInventory.length === 0 ? (
               <div style={{ textAlign: "center", padding: "60px 20px", animation: "fadeUp 0.4s ease-out" }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>No se encontraron productos</h3>
-                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? "Intenta con otro término de búsqueda" : "No hay productos disponibles en este momento"}</p>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>{t("common.noResults")}</h3>
+                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? t("common.tryOther") : t("common.noProducts")}</p>
               </div>
             ) : (
               <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 18 }}>
                 {pagedInventory.map((item, i) => (
                   <div key={item.id} className="portal-card" style={{ background: "var(--bg-card)", borderRadius: 16, border: "1px solid var(--border)", overflow: "hidden", animation: `fadeUp 0.4s ease-out ${i * 0.05}s both` }}>
                     {item.image ? (
-                      <div onClick={() => setViewImage(item.image)} style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", cursor: "pointer", position: "relative" }}>
-                        <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s" }}
+                      <div onClick={() => setViewImage(item.image)} style={{ width: "100%", aspectRatio: "1/1", overflow: "hidden", cursor: "pointer", position: "relative", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8, transition: "transform 0.3s" }}
                           onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
                           onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                         />
@@ -808,7 +837,7 @@ export default function PortalPage() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ width: "100%", aspectRatio: "4/3", background: "linear-gradient(135deg, var(--bg-tertiary), var(--bg-hover))", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                      <div style={{ width: "100%", aspectRatio: "1/1", background: "linear-gradient(135deg, var(--bg-tertiary), var(--bg-hover))", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                         <span style={{ fontSize: 48, opacity: 0.3 }}>📦</span>
                         <div style={{ position: "absolute", top: 10, right: 10, padding: "4px 10px", borderRadius: 8, background: "rgba(0,0,0,0.4)", fontSize: 11, fontWeight: 700, color: item.quantity <= 5 ? "#ef4444" : "#10b981" }}>
                           Stock: {item.quantity}
@@ -851,36 +880,42 @@ export default function PortalPage() {
               <div style={{ textAlign: "center", padding: "60px 20px", animation: "fadeUp 0.4s ease-out" }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>🎮</div>
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>No se encontraron programas</h3>
-                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? "Intenta con otro término de búsqueda" : "No hay programas disponibles en este momento"}</p>
+                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? t("common.tryOther") : "No hay programas disponibles en este momento"}</p>
               </div>
             ) : (
               <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 18 }}>
-                {pagedSoftware.map((sw, i) => (
-                  <div key={sw.id} onClick={() => { setSelectedSw(sw); setCarouselIdx(0); }} className="portal-card" style={{ background: "var(--bg-card)", borderRadius: 16, border: "1px solid var(--border)", overflow: "hidden", animation: `fadeUp 0.4s ease-out ${i * 0.05}s both`, cursor: "pointer" }}>
-                    {sw.image ? (
-                      <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden" }}>
-                        <img src={sw.image} alt={sw.name} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                        />
-                      </div>
-                    ) : (
-                      <div style={{ width: "100%", aspectRatio: "4/3", background: "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(99,102,241,0.08))", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <span style={{ fontSize: 48, opacity: 0.3 }}>🎮</span>
-                      </div>
-                    )}
-                    <div style={{ padding: "14px 16px" }}>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
-                        {sw.category && <span style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.5px" }}>{sw.category}</span>}
-                        {sw.branch && <span style={{ fontSize: 9, fontWeight: 700, color: "#818cf8", padding: "2px 8px", borderRadius: 6, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.15)" }}>🏢 {sw.branch.name}</span>}
-                      </div>
-                      <h3 style={{ fontSize: 15, fontWeight: 700, marginTop: 4, color: "var(--text-primary)", lineHeight: 1.3 }}>{sw.name}</h3>
-                      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        {sw.size && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 8, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", color: "#818cf8", fontWeight: 600 }}>💾 {sw.size}</span>}
+                {pagedSoftware.map((sw, i) => {
+                  const imgs = parseEqImages(sw.image);
+                  const firstImg = imgs[0] || null;
+                  return (
+                    <div key={sw.id} onClick={() => { setSelectedSw(sw); setCarouselIdx(0); }} className="portal-card" style={{ background: "var(--bg-card)", borderRadius: 16, border: "1px solid var(--border)", overflow: "hidden", animation: `fadeUp 0.4s ease-out ${i * 0.05}s both`, cursor: "pointer", position: "relative" }}>
+                      {sw.category && <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2, padding: "3px 10px", borderRadius: 6, background: "rgba(139,92,246,0.9)", color: "#fff", fontSize: 10, fontWeight: 700 }}>💿 {sw.category}</div>}
+                      {sw.rating && <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2, padding: "3px 8px", borderRadius: 6, background: "rgba(239,68,68,0.9)", color: "#fff", fontSize: 9, fontWeight: 700 }}>🔞 {sw.rating}</div>}
+                      {firstImg ? (
+                        <div style={{ width: "100%", aspectRatio: "3/4", overflow: "hidden" }}>
+                          <img src={firstImg} alt={sw.name} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s" }}
+                            onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ width: "100%", aspectRatio: "3/4", background: "linear-gradient(135deg, rgba(139,92,246,0.14), rgba(139,92,246,0.04))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: 56, opacity: 0.3 }}>💿</span>
+                        </div>
+                      )}
+                      <div style={{ padding: "14px 16px" }}>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+                          {sw.branch && <span style={{ fontSize: 9, fontWeight: 700, color: "#818cf8", padding: "2px 8px", borderRadius: 6, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.15)" }}>🏢 {sw.branch.name}</span>}
+                        </div>
+                        <h3 style={{ fontSize: 15, fontWeight: 700, marginTop: 4, color: "var(--text-primary)", lineHeight: 1.3 }}>{sw.name}</h3>
+                        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          {sw.size && <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)", color: "#818cf8", fontWeight: 600 }}>💾 {sw.size}</span>}
+                          {sw.language && <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.15)", color: "#06b6d4", fontWeight: 600 }}>🌐 {sw.language}</span>}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             {totalPagesSw > 1 && (
@@ -902,7 +937,7 @@ export default function PortalPage() {
               <div style={{ textAlign: "center", padding: "60px 20px", animation: "fadeUp 0.4s ease-out" }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>🎮</div>
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>No se encontraron videojuegos</h3>
-                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? "Intenta con otro término de búsqueda" : "No hay videojuegos disponibles en este momento"}</p>
+                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? t("common.tryOther") : "No hay videojuegos disponibles en este momento"}</p>
               </div>
             ) : (
               <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 18 }}>
@@ -1044,7 +1079,7 @@ export default function PortalPage() {
               <div style={{ textAlign: "center", padding: "60px 20px", animation: "fadeUp 0.4s ease-out" }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>🕹️</div>
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>No se encontraron consolas</h3>
-                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? "Intenta con otro término de búsqueda" : "No hay consolas disponibles en este momento"}</p>
+                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? t("common.tryOther") : "No hay consolas disponibles en este momento"}</p>
               </div>
             ) : (
               <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 18 }}>
@@ -1059,14 +1094,14 @@ export default function PortalPage() {
                       {cn.state && <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2, padding: "3px 8px", borderRadius: 6, background: cn.state === "Nueva" ? "rgba(16,185,129,0.85)" : "rgba(245,158,11,0.85)", color: "#fff", fontSize: 10, fontWeight: 700 }}>{cn.state === "Nueva" ? "✨" : "🔄"} {cn.state}</div>}
                       {imgs.length > 1 && <div style={{ position: "absolute", ...(cn.state ? { top: 38 } : { top: 10 }), right: 10, zIndex: 2, padding: "2px 8px", borderRadius: 6, background: "rgba(0,0,0,0.7)", color: "#fff", fontSize: 10, fontWeight: 700 }}>📷 {imgs.length}</div>}
                       {firstImg ? (
-                        <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden" }}>
-                          <img src={firstImg} alt={dName} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s" }}
+                        <div style={{ width: "100%", aspectRatio: "1/1", overflow: "hidden", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <img src={firstImg} alt={dName} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8, transition: "transform 0.3s" }}
                             onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
                             onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                           />
                         </div>
                       ) : (
-                        <div style={{ width: "100%", aspectRatio: "4/3", background: `linear-gradient(135deg, ${catColor}14, ${catColor}04)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ width: "100%", aspectRatio: "1/1", background: `linear-gradient(135deg, ${catColor}14, ${catColor}04)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <span style={{ fontSize: 56, opacity: 0.3 }}>🕹️</span>
                         </div>
                       )}
@@ -1216,7 +1251,7 @@ export default function PortalPage() {
 
                 {imgs.length > 0 ? (
                   <div style={{ padding: "16px 20px 8px" }}>
-                    <div style={{ width: "100%", aspectRatio: "4/3", borderRadius: 14, overflow: "hidden", background: "var(--bg-tertiary)", position: "relative", maxHeight: 420 }}>
+                    <div style={{ width: "100%", aspectRatio: "3/4", borderRadius: 14, overflow: "hidden", background: "var(--bg-tertiary)", position: "relative", maxHeight: 420 }}>
                       {currentImg && <img src={currentImg} alt={sw.name} style={{ width: "100%", height: "100%", objectFit: "contain", cursor: "zoom-in" }} onClick={() => setViewImage(currentImg)} />}
                       {imgs.length > 1 && (
                         <>
@@ -1229,7 +1264,7 @@ export default function PortalPage() {
                   </div>
                 ) : (
                   <div style={{ padding: "16px 20px 8px" }}>
-                    <div style={{ width: "100%", aspectRatio: "4/3", borderRadius: 14, background: "linear-gradient(135deg, rgba(139,92,246,0.14), rgba(139,92,246,0.04))", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border)", maxHeight: 380 }}>
+                    <div style={{ width: "100%", aspectRatio: "3/4", borderRadius: 14, background: "linear-gradient(135deg, rgba(139,92,246,0.14), rgba(139,92,246,0.04))", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid var(--border)", maxHeight: 380 }}>
                       <span style={{ fontSize: 64, opacity: 0.3 }}>💿</span>
                     </div>
                   </div>
@@ -1283,7 +1318,7 @@ export default function PortalPage() {
               <div style={{ textAlign: "center", padding: "60px 20px", animation: "fadeUp 0.4s ease-out" }}>
                 <div style={{ fontSize: 48, marginBottom: 16 }}>💻</div>
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8 }}>No se encontraron equipos</h3>
-                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? "Intenta con otro término de búsqueda" : "No hay equipos disponibles en este momento"}</p>
+                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{search ? t("common.tryOther") : "No hay equipos disponibles en este momento"}</p>
               </div>
             ) : (
               <div className="portal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 18 }}>
@@ -1310,14 +1345,14 @@ export default function PortalPage() {
                         </div>
                       )}
                       {firstImg ? (
-                        <div style={{ width: "100%", aspectRatio: "4/3", overflow: "hidden", position: "relative" }}>
-                          <img src={firstImg} alt={dName} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.3s" }}
+                        <div style={{ width: "100%", aspectRatio: "1/1", overflow: "hidden", position: "relative", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <img src={firstImg} alt={dName} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8, transition: "transform 0.3s" }}
                             onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
                             onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                           />
                         </div>
                       ) : (
-                        <div style={{ width: "100%", aspectRatio: "4/3", background: "linear-gradient(135deg, rgba(6,182,212,0.08), rgba(139,92,246,0.08))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ width: "100%", aspectRatio: "1/1", background: "linear-gradient(135deg, rgba(6,182,212,0.08), rgba(139,92,246,0.08))", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <span style={{ fontSize: 48, opacity: 0.3 }}>{eq.type === "laptop" ? "💻" : "🖥️"}</span>
                         </div>
                       )}

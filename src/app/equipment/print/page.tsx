@@ -58,7 +58,7 @@ export default function EquipmentPrintPage() {
         body { background: #fff; }
         table { width: 100%; border-collapse: collapse; }
         @media print {
-          @page { size: A4 landscape; margin: 10mm; }
+          @page { size: letter landscape; margin: 10mm; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
           .print-content { padding-top: 0 !important; }

@@ -1,11 +1,43 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getUserFromToken } from "@/lib/auth";
+import { sendWhatsAppSafe, buildRepairCompletedMessage, buildRepairDeliveredMessage, buildDiagnosticMessage, buildInProgressMessage, buildWaitingPartsMessage } from "@/lib/whatsapp";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente", diagnosed: "Diagnosticado", waiting_parts: "Esperando Repuestos",
   in_progress: "En Progreso", completed: "Completado", delivered: "Entregado",
 };
+
+// Envía WhatsApp al cliente según el nuevo estado. No bloqueante.
+async function notifyClientByStatus(repair: any, newStatus: string, origin: string) {
+  if (!repair.clientPhone) return;
+  try {
+    const settings = await prisma.settings.findFirst();
+    const company = { companyName: settings?.companyName || "RepairTrackQR" };
+    const trackUrl = `${origin}/track/${repair.code}?branchId=${repair.branchId}`;
+    const repairInfo = { code: repair.code, device: repair.device, brand: repair.brand, model: repair.model, clientName: repair.clientName, estimatedCost: Number(repair.estimatedCost || 0) };
+    let msg = "";
+    switch (newStatus) {
+      case "diagnosed": msg = buildDiagnosticMessage(repairInfo, company, trackUrl); break;
+      case "in_progress": msg = buildInProgressMessage(repairInfo, company, trackUrl); break;
+      case "waiting_parts": msg = buildWaitingPartsMessage(repairInfo, company, trackUrl); break;
+      case "completed": msg = buildRepairCompletedMessage(repairInfo, company, trackUrl); break;
+      case "delivered": {
+        const ceCode = repair.code.replace(/^OT-/i, "CE-");
+        const ceUrl = `${origin}/certificate-view/${ceCode}?branchId=${repair.branchId}`;
+        msg = buildRepairDeliveredMessage(repairInfo, company, ceCode, ceUrl);
+        break;
+      }
+    }
+    if (msg) {
+      const sent = await sendWhatsAppSafe(repair.clientPhone, msg);
+      console.log(`[WhatsApp] ${repair.code} → ${newStatus} → ${repair.clientPhone}: ${sent ? "ENVIADO ✅" : "FALLÓ ❌"}`);
+    }
+  } catch (err) {
+    console.error("[WhatsApp] Error en notifyClientByStatus:", err);
+  }
+}
+
 
 export async function PATCH(request: Request, context: any) {
   const user = getUserFromToken(request);
@@ -24,9 +56,24 @@ export async function PATCH(request: Request, context: any) {
       if (body.status !== undefined) updateData.status = body.status;
       if (body.notes !== undefined) updateData.notes = body.notes || null;
 
+      // Guardar estado anterior para historial
+      const prevStatus = repair.status;
       const updated = await prisma.repair.update({ where: { id }, data: updateData });
 
-      if (body.status) {
+      if (body.status && body.status !== prevStatus) {
+        // Registrar en historial
+        try {
+          await prisma.statusHistory.create({
+            data: {
+              repairId: id,
+              fromStatus: prevStatus,
+              toStatus: body.status,
+              changedBy: user.id,
+              changedByName: user.email?.split("@")[0] || "Técnico",
+            },
+          });
+        } catch (e) { console.error("[StatusHistory] Error:", e); }
+
         await prisma.notification.create({
           data: {
             type: "status_change",
@@ -36,12 +83,15 @@ export async function PATCH(request: Request, context: any) {
             branchId: updated.branchId,
           },
         });
+        const origin = new URL(request.url).origin;
+        await notifyClientByStatus(updated, body.status, origin);
       }
 
       return NextResponse.json(updated);
     }
 
     // Admin / superadmin can change everything
+    const prevRepair = await prisma.repair.findUnique({ where: { id }, select: { status: true, technicianId: true } });
     const updateData: Record<string, any> = {};
     if (body.status !== undefined) updateData.status = body.status;
     if (body.notes !== undefined) updateData.notes = body.notes || null;
@@ -60,7 +110,20 @@ export async function PATCH(request: Request, context: any) {
 
     const repair = await prisma.repair.update({ where: { id }, data: updateData });
 
-    if (body.status) {
+    if (body.status && body.status !== prevRepair?.status) {
+      // Registrar en historial
+      try {
+        await prisma.statusHistory.create({
+          data: {
+            repairId: id,
+            fromStatus: prevRepair?.status || null,
+            toStatus: body.status,
+            changedBy: user.id,
+            changedByName: user.email?.split("@")[0] || "Admin",
+          },
+        });
+      } catch (e) { console.error("[StatusHistory] Error:", e); }
+
       await prisma.notification.create({
         data: {
           type: "status_change",
@@ -70,6 +133,8 @@ export async function PATCH(request: Request, context: any) {
           branchId: repair.branchId,
         },
       });
+      const origin = new URL(request.url).origin;
+      await notifyClientByStatus(repair, body.status, origin);
     } else {
       await prisma.notification.create({
         data: {
@@ -82,7 +147,7 @@ export async function PATCH(request: Request, context: any) {
       });
     }
 
-    if (body.technicianId && body.technicianId !== repair.technicianId) {
+    if (body.technicianId && body.technicianId !== prevRepair?.technicianId) {
       await prisma.notification.create({
         data: {
           type: "new_repair",

@@ -15,12 +15,12 @@ const ACCESSORIES_ALL = ["Cargador", "Batería", "Disco Duro", "Memoria RAM", "C
 
 function parseAccWithDetail(raw: string): { name: string; detail: string } { const match = raw.match(/^(.+?)\s*\((.+)\)$/); if (match) return { name: match[1].trim(), detail: match[2].trim() }; return { name: raw.trim(), detail: "" }; }
 
-function parseNotesAll(n: string | null): { notes: string; services: string[]; software: string[]; repuestos: string[] } {
-  if (!n) return { notes: "", services: [], software: [], repuestos: [] };
+function parseNotesAll(n: string | null): { notes: string; services: string[]; software: string[]; videogames: string[]; repuestos: string[] } {
+  if (!n) return { notes: "", services: [], software: [], videogames: [], repuestos: [] };
   const parts = n.split(" | ");
-  const svc = parts.find(p => p.startsWith("Servicios: ")); const sw = parts.find(p => p.startsWith("Software: ")); const rep = parts.find(p => p.startsWith("Repuestos: "));
-  const rest = parts.filter(p => !p.startsWith("Servicios: ") && !p.startsWith("Software: ") && !p.startsWith("Repuestos: ") && !p.startsWith("Entrega: "));
-  return { notes: rest.join(" | "), services: svc ? svc.replace("Servicios: ", "").split(", ").filter(Boolean) : [], software: sw ? sw.replace("Software: ", "").split(", ").filter(Boolean) : [], repuestos: rep ? rep.replace("Repuestos: ", "").split(", ").filter(Boolean) : [] };
+  const svc = parts.find(p => p.startsWith("Servicios: ")); const sw = parts.find(p => p.startsWith("Programas: ") || p.startsWith("Software: ")); const vg = parts.find(p => p.startsWith("Videojuegos: ")); const rep = parts.find(p => p.startsWith("Repuestos: "));
+  const rest = parts.filter(p => !p.startsWith("Servicios: ") && !p.startsWith("Programas: ") && !p.startsWith("Software: ") && !p.startsWith("Videojuegos: ") && !p.startsWith("Repuestos: ") && !p.startsWith("Entrega: "));
+  return { notes: rest.join(" | "), services: svc ? svc.replace("Servicios: ", "").split(", ").filter(Boolean) : [], software: sw ? sw.replace("Programas: ", "").replace("Software: ", "").split(", ").filter(Boolean) : [], videogames: vg ? vg.replace("Videojuegos: ", "").split(", ").filter(Boolean) : [], repuestos: rep ? rep.replace("Repuestos: ", "").split(", ").filter(Boolean) : [] };
 }
 
 export default function PrintPage() {
@@ -121,7 +121,8 @@ export default function PrintPage() {
             {repair.issue && <div style={{ padding: "3px 6px", background: "#f7f7f8", borderRadius: 3, borderLeft: "2px solid #555" }}><div style={{ fontSize: 6, color: "#888", fontWeight: 700, textTransform: "uppercase" }}>Problema</div><div style={{ fontSize: 8, color: "#222", marginTop: 1 }}>{repair.issue}</div></div>}
             {parsed.notes && <div style={{ padding: "3px 6px", background: "#fffbeb", borderRadius: 3, borderLeft: "2px solid #f59e0b" }}><div style={{ fontSize: 6, color: "#b45309", fontWeight: 700, textTransform: "uppercase" }}>Observaciones</div><div style={{ fontSize: 8, color: "#333", marginTop: 1 }}>{parsed.notes}</div></div>}
             {parsed.services.length > 0 && <div style={{ padding: "3px 6px", background: "#faf5ff", borderRadius: 3, borderLeft: "2px solid #7c3aed" }}><div style={{ fontSize: 6, color: "#7c3aed", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Servicios</div><div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>{parsed.services.map(n => <span key={n} style={{ padding: "1px 5px", background: "#f0ebff", border: "1px solid #e9d5ff", borderRadius: 3, fontSize: 7, fontWeight: 600, color: "#7c3aed" }}>{n}</span>)}</div></div>}
-            {parsed.software.length > 0 && <div style={{ padding: "3px 6px", background: "#f5f3ff", borderRadius: 3, borderLeft: "2px solid #6d28d9" }}><div style={{ fontSize: 6, color: "#6d28d9", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Software</div><div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>{parsed.software.map(n => <span key={n} style={{ padding: "1px 5px", background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 3, fontSize: 7, fontWeight: 600, color: "#6d28d9" }}>{n}</span>)}</div></div>}
+            {parsed.software.length > 0 && <div style={{ padding: "3px 6px", background: "#f5f3ff", borderRadius: 3, borderLeft: "2px solid #6d28d9" }}><div style={{ fontSize: 6, color: "#6d28d9", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Programas</div><div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>{parsed.software.map(n => <span key={n} style={{ padding: "1px 5px", background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 3, fontSize: 7, fontWeight: 600, color: "#6d28d9" }}>{n}</span>)}</div></div>}
+            {parsed.videogames.length > 0 && <div style={{ padding: "3px 6px", background: "#fef2f2", borderRadius: 3, borderLeft: "2px solid #b91c1c" }}><div style={{ fontSize: 6, color: "#b91c1c", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Videojuegos</div><div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>{parsed.videogames.map(n => <span key={n} style={{ padding: "1px 5px", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: 3, fontSize: 7, fontWeight: 600, color: "#b91c1c" }}>{n}</span>)}</div></div>}
             {parsed.repuestos.length > 0 && <div style={{ padding: "3px 6px", background: "#fffbeb", borderRadius: 3, borderLeft: "2px solid #b45309" }}><div style={{ fontSize: 6, color: "#b45309", fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Repuestos</div><div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>{parsed.repuestos.map(n => <span key={n} style={{ padding: "1px 5px", background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 3, fontSize: 7, fontWeight: 600, color: "#b45309" }}>{n}</span>)}</div></div>}
           </div>
         </div>
@@ -148,11 +149,18 @@ export default function PrintPage() {
       <style>{`
         @media print { @page { size: letter portrait; margin: 5mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .print-content { padding-top: 0 !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; } body { background: #fff; }
+        @media (max-width: 768px) {
+          .print-toolbar { padding: 10px 12px !important; flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+          .print-toolbar-actions { display: grid !important; grid-template-columns: 1fr 1fr; width: 100%; gap: 8px !important; }
+          .print-content { max-width: 100% !important; padding: 72px 10px 16px !important; display: flex !important; flex-direction: column !important; gap: 12px !important; }
+          .receipt-container { width: 100% !important; flex: none !important; min-width: 0 !important; }
+          .receipt-divider { display: none !important; }
+        }
       `}</style>
 
-      <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "10px 24px", background: "#0a0a12", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100 }}>
+      <div className="no-print print-toolbar" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "10px 24px", background: "#0a0a12", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100, gap: 10, flexWrap: "wrap" }}>
         <span style={{ color: "#eee", fontSize: 14, fontWeight: 600 }}>🖨️ Recepción x2 — {repair.code}</span>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div className="print-toolbar-actions" style={{ display: "flex", gap: 10 }}>
           <button onClick={() => window.print()} style={{ padding: "8px 20px", background: "#6366f1", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨️ Imprimir</button>
           <button onClick={() => window.close()} style={{ padding: "8px 20px", background: "#1e1e2e", border: "1px solid #2e2e3e", borderRadius: 8, color: "#888", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✕ Cerrar</button>
         </div>
@@ -165,7 +173,7 @@ export default function PrintPage() {
         </div>
 
         {/* LÍNEA DE CORTE VERTICAL */}
-        <div style={{ borderLeft: "2px dashed #ccc", margin: "12px 0", position: "relative", flexShrink: 0 }}>
+        <div className="receipt-divider" style={{ borderLeft: "2px dashed #ccc", margin: "12px 0", position: "relative", flexShrink: 0 }}>
           <span style={{ position: "absolute", top: "50%", left: -20, transform: "translateY(-50%) rotate(-90deg)", background: "#fff", padding: "0 6px", fontSize: 7, color: "#bbb", whiteSpace: "nowrap" }}>✂ CORTAR</span>
         </div>
 

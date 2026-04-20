@@ -16,14 +16,27 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#6366f1",
 };
 
 export const metadata: Metadata = {
   title: "RepairTrackQR",
   description: "Sistema de Seguimiento de Reparaciones - Multi-Sucursal",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "RepairTrack",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 import ToastProvider from "./providers";
+import { PwaSetup } from "@/components/PwaSetup";
+import { GlobalSearchProvider } from "@/components/GlobalSearchProvider";
 
 export default function RootLayout({
   children,
@@ -38,6 +51,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ToastProvider />
+        <PwaSetup />
+        <GlobalSearchProvider />
         {children}
       </body>
     </html>

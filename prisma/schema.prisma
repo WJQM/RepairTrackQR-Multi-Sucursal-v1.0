@@ -317,3 +317,68 @@ model Console {
   @@index([branchId, category])
   @@index([branchId, condition])
 }
+
+// Registro de visitas al portal público
+model PageView {
+  id           String   @id @default(cuid())
+  path         String   // "/portal", "/track/OT-5", "/certificate-view/CE-3"
+  documentType String?  // "ot" | "ce" | "cot" | "nv" | "eq" | "cn" | "cl" | null
+  documentCode String?  // "OT-5", "CE-3", null si es portal principal
+  ipHash       String?  // SHA-256 de IP (para uniqueness sin PII)
+  userAgent    String?  // Browser info (truncado a 300 chars)
+  referrer     String?  // URL de donde vino
+  branchId     String?  // Si se pudo asociar a una sucursal
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([documentType, createdAt])
+  @@index([documentCode])
+  @@index([path, createdAt])
+}
+
+// Historial de cambios de estado de OTs
+model StatusHistory {
+  id          String   @id @default(cuid())
+  repairId    String
+  fromStatus  String?  // null si es el estado inicial
+  toStatus    String
+  changedBy   String?  // userId que hizo el cambio
+  changedByName String? // nombre del usuario (cacheado)
+  notes       String?  // comentario opcional
+  createdAt   DateTime @default(now())
+
+  @@index([repairId, createdAt])
+}
+
+// Caja chica: movimientos de dinero (ingresos y egresos)
+model CashMovement {
+  id          String   @id @default(cuid())
+  type        String   // "income" | "expense"
+  category    String   // "repuestos" | "servicios" | "pagos" | "ventas" | "otros" | "ajuste"
+  amount      Float
+  description String
+  notes       String?
+  createdBy   String?  // userId
+  createdByName String? // nombre usuario cacheado
+  branchId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([branchId, createdAt])
+  @@index([branchId, type, createdAt])
+}
+
+// Reseñas/calificaciones del cliente al entregar OT
+model Review {
+  id          String   @id @default(cuid())
+  repairId    String   @unique
+  repairCode  String   // OT-X
+  rating      Int      // 1-5 estrellas
+  comment     String?
+  clientName  String?
+  branchId    String
+  createdAt   DateTime @default(now())
+
+  @@index([branchId, createdAt])
+  @@index([rating])
+}

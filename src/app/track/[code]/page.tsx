@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { PortalTracker } from "@/components/PortalTracker";
+import { ReviewForm } from "@/components/ReviewForm";
 
 interface Repair {
   id: string; code: string; device: string; brand: string | null; model: string | null;
@@ -20,19 +22,21 @@ const STATUS: Record<string, { label: string; color: string; icon: string; desc:
 };
 
 function parseAccessories(json: string | null): string[] { if (!json) return []; try { return JSON.parse(json); } catch { return []; } }
-function parseNotesData(notesField: string | null): { notes: string; services: string[]; software: string[]; repuestos: string[]; deliveryNotes: string; discount: string } {
-  if (!notesField) return { notes: "", services: [], software: [], repuestos: [], deliveryNotes: "", discount: "" };
+function parseNotesData(notesField: string | null): { notes: string; services: string[]; software: string[]; videogames: string[]; repuestos: string[]; deliveryNotes: string; discount: string } {
+  if (!notesField) return { notes: "", services: [], software: [], videogames: [], repuestos: [], deliveryNotes: "", discount: "" };
   const parts = notesField.split(" | ");
   const svcPart = parts.find(p => p.startsWith("Servicios: "));
-  const swPart = parts.find(p => p.startsWith("Software: "));
+  const swPart = parts.find(p => p.startsWith("Programas: ") || p.startsWith("Software: "));
+  const vgPart = parts.find(p => p.startsWith("Videojuegos: "));
   const rPart = parts.find(p => p.startsWith("Repuestos: "));
   const dPart = parts.find(p => p.startsWith("Entrega: "));
   const discPart = parts.find(p => p.startsWith("Descuento: "));
-  const notesParts = parts.filter(p => !p.startsWith("Servicios: ") && !p.startsWith("Software: ") && !p.startsWith("Repuestos: ") && !p.startsWith("Entrega: ") && !p.startsWith("Descuento: "));
+  const notesParts = parts.filter(p => !p.startsWith("Servicios: ") && !p.startsWith("Programas: ") && !p.startsWith("Software: ") && !p.startsWith("Videojuegos: ") && !p.startsWith("Repuestos: ") && !p.startsWith("Entrega: ") && !p.startsWith("Descuento: "));
   const services = svcPart ? svcPart.replace("Servicios: ", "").split(", ").filter(Boolean) : [];
-  const software = swPart ? swPart.replace("Software: ", "").split(", ").filter(Boolean) : [];
+  const software = swPart ? swPart.replace("Programas: ", "").replace("Software: ", "").split(", ").filter(Boolean) : [];
+  const videogames = vgPart ? vgPart.replace("Videojuegos: ", "").split(", ").filter(Boolean) : [];
   const repuestos = rPart ? rPart.replace("Repuestos: ", "").split(", ").filter(Boolean) : [];
-  return { notes: notesParts.join(" | "), services, software, repuestos, deliveryNotes: dPart ? dPart.replace("Entrega: ", "") : "", discount: discPart ? discPart.replace("Descuento: ", "") : "" };
+  return { notes: notesParts.join(" | "), services, software, videogames, repuestos, deliveryNotes: dPart ? dPart.replace("Entrega: ", "") : "", discount: discPart ? discPart.replace("Descuento: ", "") : "" };
 }
 
 export default function TrackPage() {
@@ -135,10 +139,11 @@ export default function TrackPage() {
   const progress = ((currentIndex + 1) / statusKeys.length) * 100;
   const deviceName = [repair.device, repair.brand, repair.model].filter(Boolean).join(" ");
   const accessories = parseAccessories(repair.accessories);
-  const { notes, services, software, repuestos, deliveryNotes, discount } = parseNotesData(repair.notes);
+  const { notes, services, software, videogames, repuestos, deliveryNotes, discount } = parseNotesData(repair.notes);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#050507", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, position: "relative", overflow: "hidden" }}>
+    <div style={{ minHeight: "100vh", background: "#050507", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, position: "relative", overflow: "hidden" }}>
+      <PortalTracker />
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.7; } }
@@ -263,12 +268,22 @@ export default function TrackPage() {
             </div>
           )}
 
-          {/* Software */}
+          {/* Programas */}
           {software.length > 0 && (
             <div style={{ padding: "14px 16px", background: "rgba(139,92,246,0.04)", borderRadius: 12, borderLeft: "3px solid #8b5cf6", marginBottom: 14 }}>
-              <div style={{ fontSize: 10, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600, marginBottom: 8 }}>🎮 Software a Instalar</div>
+              <div style={{ fontSize: 10, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600, marginBottom: 8 }}>💿 Programas a Instalar</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {software.map((name) => (<span key={name} style={{ padding: "4px 10px", background: "rgba(139,92,246,0.1)", borderRadius: 8, fontSize: 11, fontWeight: 600, color: "#8b5cf6" }}>{name}</span>))}
+              </div>
+            </div>
+          )}
+
+          {/* Videojuegos */}
+          {videogames.length > 0 && (
+            <div style={{ padding: "14px 16px", background: "rgba(239,68,68,0.04)", borderRadius: 12, borderLeft: "3px solid #ef4444", marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600, marginBottom: 8 }}>🎮 Videojuegos a Instalar</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {videogames.map((name) => (<span key={name} style={{ padding: "4px 10px", background: "rgba(239,68,68,0.1)", borderRadius: 8, fontSize: 11, fontWeight: 600, color: "#ef4444" }}>{name}</span>))}
               </div>
             </div>
           )}
@@ -324,6 +339,13 @@ export default function TrackPage() {
 
         <div style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 1, background: `linear-gradient(90deg, transparent, ${status.color}30, transparent)` }} />
       </div>
+
+      {/* Reseña del cliente — solo si OT entregada */}
+      {repair.status === "delivered" && (
+        <div style={{ width: "100%", maxWidth: 620, marginTop: 20, position: "relative", zIndex: 2 }}>
+          <ReviewForm repairCode={repair.code} clientName={repair.clientName} />
+        </div>
+      )}
     </div>
   );
 }

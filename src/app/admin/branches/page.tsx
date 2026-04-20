@@ -3,14 +3,12 @@ import { sileo } from "@/lib/toast";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getStoredAuth, getActiveBranchId, setActiveBranchId } from "@/lib/api";
+import { AppSidebar } from "@/components/AppSidebar";
 
 interface Branch { id: string; name: string; address: string | null; phone: string | null; active: boolean; createdAt: string; _count: { users: number; repairs: number }; }
 
 export default function AdminBranchesPage() {
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({"catalogo": false, "documentos": false, "admin": true, "recepcion": false});
-  const toggleMenu = (key: string) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const [user, setUser] = useState<any>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [allBranches, setAllBranches] = useState<{id:string;name:string}[]>([]);
@@ -84,10 +82,10 @@ export default function AdminBranchesPage() {
         .sidebar-btn:hover { background: rgba(99,102,241,0.06); color: var(--text-secondary); }
         .sidebar-btn.active { background: rgba(99,102,241,0.12); color: #818cf8; }
         .sidebar-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
-        @media(max-width:768px){
+        @media(max-width:1024px){
           .sidebar-desktop{transform:translateX(-100%)!important}
           .sidebar-desktop.open{transform:translateX(0)!important}
-          .main-content{margin-left:0!important;padding-top:72px!important}
+          .main-content{margin-left:0!important;padding-top:56px!important}
           .mobile-header{display:flex!important}
           .sidebar-overlay{display:block!important}
         }
@@ -95,77 +93,7 @@ export default function AdminBranchesPage() {
         .form-input:focus { border-color: #6366f1; }
       `}</style>
 
-      {/* MOBILE HEADER */}
-      <div className="mobile-header" style={{ display: "none", position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "rgba(12,12,18,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid var(--border)", alignItems: "center", padding: "0 16px", zIndex: 50, gap: 12 }}>
-        <button onClick={() => setMenuOpen(!menuOpen)} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", color: "#818cf8" }}>{menuOpen ? "✕" : "☰"}</button>
-        <span style={{ fontWeight: 800, fontSize: 15 }}>{settings.companyName}</span>
-      </div>
-      {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 44 }} />}
-
-      {/* SIDEBAR */}
-      <aside className={`sidebar-desktop${menuOpen ? " open" : ""}`} style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: 200, transition: "transform 0.3s ease", background: "rgba(12,12,18,0.95)", backdropFilter: "blur(20px)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", zIndex: 45, padding: "0 10px" }}>
-        <div style={{ padding: "18px 14px 20px", borderBottom: "1px solid var(--border)", marginBottom: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {settings.logo ? <img src={settings.logo} alt="" style={{ width: 34, height: 34, borderRadius: 10, objectFit: "contain", flexShrink: 0 }} /> : <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #818cf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, boxShadow: "0 0 20px rgba(99,102,241,0.2)", flexShrink: 0 }}>🔧</div>}
-            <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>{settings.companyName}</span>
-          </div>
-        </div>
-        <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflow: "auto", padding: "4px 0" }}>
-          {allBranches.length > 0 && (
-            <div style={{ padding: "0 6px 8px" }}>
-              <label style={{ fontSize: 9, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, display: "block" }}>🏢 Sucursal</label>
-              <select value={activeBranch} onChange={(e) => { setActiveBranchState(e.target.value); setActiveBranchId(e.target.value); }} style={{ width: "100%", padding: "8px 10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, color: "#eeeef2", fontSize: 11, fontWeight: 600, cursor: "pointer", outline: "none" }}>
-                {allBranches.map(b => <option key={b.id} value={b.id} style={{ background: "#111118" }}>{b.name}</option>)}
-              </select>
-            </div>
-          )}
-          <>
-            {/* Standalone */}
-            {/* Recepción */}
-            <button className={`sidebar-group-btn${openMenus.recepcion ? " open" : ""}`} onClick={() => toggleMenu("recepcion")} style={{ background: "rgba(96,165,250,0.08)", borderLeft: "2px solid #60a5fa", color: "#60a5fa", borderRadius: "0 8px 8px 0" }}><span>📥 Recepción</span><span className="group-arrow" style={{ color: "#60a5fa" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.recepcion ? " open" : ""}`}>
-            <button key="/dashboard" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/dashboard"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📋</div>Panel Principal</button>
-            <button key="/scanner" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/scanner"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📷</div>Escáner</button>
-            </div>
-            {/* Catálogo */}
-            <button className={`sidebar-group-btn${openMenus.catalogo ? " open" : ""}`} onClick={() => toggleMenu("catalogo")} style={{ background: "rgba(251,191,36,0.08)", borderLeft: "2px solid #fbbf24", color: "#fbbf24", borderRadius: "0 8px 8px 0" }}><span>📂 Catálogo</span><span className="group-arrow" style={{ color: "#fbbf24" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.catalogo ? " open" : ""}`}>
-            <button key="/services" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/services"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🛠️</div>Servicios</button>
-            <button key="/inventory" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/inventory"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📦</div>Inventario</button>
-            <button key="/equipment" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/equipment"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💻</div>Equipos</button>
-            <button key="/software" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/software"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>💿</div>Programas</button>
-            <button key="/videogames" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/videogames"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🎮</div>Videojuegos</button>
-            <button key="/consoles" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/consoles"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🕹️</div>Consolas</button>
-            </div>
-            {/* Documentos */}
-            <button className={`sidebar-group-btn${openMenus.documentos ? " open" : ""}`} onClick={() => toggleMenu("documentos")} style={{ background: "rgba(52,211,153,0.08)", borderLeft: "2px solid #34d399", color: "#34d399", borderRadius: "0 8px 8px 0" }}><span>📄 Documentos</span><span className="group-arrow" style={{ color: "#34d399" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.documentos ? " open" : ""}`}>
-            <button key="/quotations" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/quotations"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🧾</div>Cotizaciones</button>
-            <button key="/extracto" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/extracto"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>📊</div>Extracto</button>
-            <button key="/certificates" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/certificates"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>🏅</div>Certificados</button>
-            </div>
-            {/* Administración */}
-            {user?.role === "superadmin" && (<>
-            <button className={`sidebar-group-btn${openMenus.admin ? " open" : ""}`} onClick={() => toggleMenu("admin")} style={{ background: "rgba(248,113,113,0.08)", borderLeft: "2px solid #f87171", color: "#f87171", borderRadius: "0 8px 8px 0" }}><span>⚙️ Administración</span><span className="group-arrow" style={{ color: "#f87171" }}>▾</span></button>
-            <div className={`sidebar-sub-list${openMenus.admin ? " open" : ""}`}>
-            <button key="/admin/users" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/users"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>👥</div>Usuarios</button>
-            <button key="/admin/branches" className={`sidebar-btn sidebar-sub${true ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/branches"); }}><div className="sidebar-icon" style={{ background: true ? "rgba(99,102,241,0.15)" : "transparent" }}>🏢</div>Sucursales</button>
-            <button key="/admin/settings" className={`sidebar-btn sidebar-sub${false ? " active" : ""}`} onClick={() => { setMenuOpen(false); router.push("/admin/settings"); }}><div className="sidebar-icon" style={{ background: false ? "rgba(99,102,241,0.15)" : "transparent" }}>⚙️</div>Configuración</button>
-            </div>
-            </>)}
-            </>
-        </nav>
-        <div style={{ borderTop: "1px solid var(--border)", padding: "12px 6px" }}>
-          <div style={{ padding: "14px 10px", marginBottom: 8, background: "rgba(99,102,241,0.04)", borderRadius: 12, border: "1px solid rgba(99,102,241,0.08)", textAlign: "center" }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg, #6366f1, #818cf8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: "#fff", margin: "0 auto 8px", boxShadow: "0 4px 14px rgba(99,102,241,0.3)", overflow: "hidden" }}>
-              {user?.image ? <img src={user.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 14 }} /> : user?.name ? user.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase() : "?"}
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{user?.name}</div>
-            <div style={{ display: "inline-block", fontSize: 9, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.5px", padding: "3px 10px", borderRadius: 8, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.15)" }}>⭐ Super Admin</div>
-          </div>
-          <button onClick={logout} style={{ width: "100%", padding: "9px 14px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 10, color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>🚪 Cerrar Sesión</button>
-        </div>
-      </aside>
+      <AppSidebar user={user} />
 
       {/* MAIN */}
       <main className="main-content" style={{ marginLeft: 200, padding: "24px 28px", minHeight: "100vh" }}>

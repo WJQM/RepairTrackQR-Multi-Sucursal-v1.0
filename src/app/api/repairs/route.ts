@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getUserFromToken, getEffectiveBranchId } from "@/lib/auth";
+import { sendWhatsAppSafe, buildRepairCreatedMessage } from "@/lib/whatsapp";
 
 async function generateCode(branchId: string): Promise<string> {
   const result = await prisma.$queryRaw<{max_num: number}[]>`
@@ -112,6 +113,20 @@ export async function POST(request: Request) {
       },
     });
 
+    // Historial inicial de estado (pending)
+    try {
+      await prisma.statusHistory.create({
+        data: {
+          repairId: repair.id,
+          fromStatus: null,
+          toStatus: repair.status || "pending",
+          changedBy: user.id,
+          changedByName: user.email?.split("@")[0] || "Sistema",
+          notes: "Orden creada",
+        },
+      });
+    } catch (e) { console.error("[StatusHistory] Error:", e); }
+
     await prisma.notification.create({
       data: {
         type: "new_repair",
@@ -132,6 +147,26 @@ export async function POST(request: Request) {
           branchId,
         },
       });
+    }
+
+    // Envío automático de WhatsApp al cliente (bloqueante pero seguro)
+    if (repair.clientPhone) {
+      try {
+        const settings = await prisma.settings.findFirst();
+        const origin = new URL(request.url).origin;
+        const trackUrl = `${origin}/track/${repair.code}?branchId=${branchId}`;
+        const msg = buildRepairCreatedMessage(
+          { code: repair.code, device: repair.device, brand: repair.brand, model: repair.model, clientName: repair.clientName },
+          { companyName: settings?.companyName || "RepairTrackQR" },
+          trackUrl
+        );
+        const sent = await sendWhatsAppSafe(repair.clientPhone, msg);
+        console.log(`[WhatsApp] OT ${repair.code} creada → ${repair.clientPhone}: ${sent ? "ENVIADO ✅" : "FALLÓ ❌"}`);
+      } catch (err) {
+        console.error("[WhatsApp] Error al enviar notificación de creación:", err);
+      }
+    } else {
+      console.log(`[WhatsApp] OT ${repair.code} creada sin teléfono, no se envía mensaje`);
     }
 
     return NextResponse.json(repair);

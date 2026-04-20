@@ -51,18 +51,28 @@ export default function InventoryPrintPage() {
         body { background: #fff; }
         table { width: 100%; border-collapse: collapse; }
         @media print {
-          @page { size: A4 landscape; margin: 10mm; }
+          @page { size: letter landscape; margin: 10mm; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
           .print-content { padding-top: 0 !important; }
           tr { page-break-inside: avoid; }
         }
+        @media (max-width: 768px) {
+          .print-toolbar { padding: 10px 12px !important; flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+          .print-toolbar-actions { display: flex !important; flex-direction: column !important; width: 100%; gap: 8px !important; }
+          .print-toolbar-actions input, .print-toolbar-actions select, .print-toolbar-actions button { width: 100% !important; }
+          .print-content { max-width: 100% !important; padding: 148px 12px 20px !important; }
+          .inventory-header, .inventory-total { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
+          .inventory-stats { grid-template-columns: 1fr 1fr !important; }
+          .inventory-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .inventory-table-scroll table { min-width: 860px; }
+        }
       `}</style>
 
       {/* BARRA DE ACCIONES */}
-      <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "12px 24px", background: "#111118", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100 }}>
+      <div className="no-print print-toolbar" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "12px 24px", background: "#111118", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100, gap: 10, flexWrap: "wrap" }}>
         <span style={{ color: "#eee", fontSize: 14, fontWeight: 600 }}>📦 Extracto de Inventario</span>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div className="print-toolbar-actions" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ padding: "7px 12px", background: "#1e1e2e", border: "1px solid #333", borderRadius: 6, color: "#eee", fontSize: 12, outline: "none", width: 180 }} />
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ padding: "7px 10px", background: "#1e1e2e", border: "1px solid #333", borderRadius: 6, color: "#eee", fontSize: 12, cursor: "pointer", outline: "none" }}>
             <option value="all">Todas</option>
@@ -76,7 +86,7 @@ export default function InventoryPrintPage() {
       <div className="print-content" style={{ maxWidth: 1100, margin: "0 auto", padding: "70px 30px 40px" }}>
 
         {/* HEADER */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "3px solid #3b82f6", paddingBottom: 16, marginBottom: 20 }}>
+        <div className="inventory-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "3px solid #3b82f6", paddingBottom: 16, marginBottom: 20, gap: 14 }}>
           <div>
             <h1 style={{ fontSize: 24, fontWeight: 800 }}>{settings.companyName}</h1>
             <p style={{ fontSize: 10, color: "#888", marginTop: 3 }}>SERVICIO TÉCNICO ESPECIALIZADO</p>
@@ -98,7 +108,7 @@ export default function InventoryPrintPage() {
         </div>
 
         {/* STATS */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+        <div className="inventory-stats" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
           {[
             { label: "Productos", value: totalItems, color: "#3b82f6", icon: "📦" },
             { label: "Unidades", value: totalUnits, color: "#10b981", icon: "🔢" },
@@ -114,7 +124,7 @@ export default function InventoryPrintPage() {
         </div>
 
         {/* TABLA */}
-        <div style={{ border: "1px solid #e2e2e2", borderRadius: 8, overflow: "hidden" }}>
+        <div className="inventory-table-scroll" style={{ border: "1px solid #e2e2e2", borderRadius: 8, overflow: "hidden" }}>
           <table>
             <thead>
               <tr style={{ background: "#f0f4ff" }}>
@@ -158,7 +168,7 @@ export default function InventoryPrintPage() {
           </table>
 
           {/* TOTALES */}
-          <div style={{ padding: "14px 16px", borderTop: "2px solid #d0d5dd", background: "#f0f4ff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="inventory-total" style={{ padding: "14px 16px", borderTop: "2px solid #d0d5dd", background: "#f0f4ff", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
 <span></span>
             <div style={{ textAlign: "right" }}>
               <span style={{ fontSize: 11, color: "#888", marginRight: 10 }}>VALOR TOTAL INVENTARIO</span>
