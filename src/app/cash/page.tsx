@@ -118,7 +118,7 @@ export default function CashPage() {
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <div className="main-content" style={{ marginLeft: 200, padding: "24px 28px 60px" }}>
+      <div className="main-content" style={{ marginLeft: 200, padding: "24px 20px 60px", minWidth: 0, boxSizing: "border-box", width: "calc(100% - 200px)", position: "relative" }}>
         <div className="cash-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>💵 Caja Chica</h1>

@@ -120,7 +120,7 @@ export default function StatsPage() {
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <div className="main-content" style={{ marginLeft: 200, padding: "24px 28px 60px", maxWidth: "100%" }}>
+      <div className="main-content" style={{ marginLeft: 200, padding: "24px 20px 60px", minWidth: 0, boxSizing: "border-box", width: "calc(100% - 200px)", position: "relative" }}>
         {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
           <div>

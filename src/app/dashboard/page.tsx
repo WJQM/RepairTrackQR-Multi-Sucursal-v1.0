@@ -604,7 +604,7 @@ return (
       )}
 
       <style>{`
-        @keyframes slideIn { from { opacity: 0; transform: translateX(80px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
+        body { overflow-x: hidden; } @keyframes slideIn { from { opacity: 0; transform: translateX(80px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeScale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -618,11 +618,13 @@ return (
         @media(max-width:1024px){
           .sidebar-desktop{transform:translateX(-100%)!important}
           .sidebar-desktop.open{transform:translateX(0)!important}
-          .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important}
+          .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important;overflow-x:hidden!important}.desktop-header{left:0!important}
           .mobile-header{display:flex!important}
           .sidebar-overlay{display:block!important}
           [style*="grid-template-columns"]{grid-template-columns:1fr!important}
-          .stats-grid{grid-template-columns:repeat(2,1fr)!important}
+          .stats-grid{grid-template-columns:repeat(2,1fr)!important} @media(min-width:1025px) and (max-width:1400px){.stats-grid{grid-template-columns:repeat(3,1fr)!important}} @media(max-width:1400px){.desktop-header{left:0!important}}
+          @media(max-width:1280px){.stats-grid{grid-template-columns:repeat(3,1fr)!important}}
+          @media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)!important} @media(min-width:1025px) and (max-width:1400px){.stats-grid{grid-template-columns:repeat(3,1fr)!important}} @media(max-width:1400px){.desktop-header{left:0!important}}}
           .card-compact{flex-direction:row!important}
           .card-img{width:60px!important;min-height:60px!important;max-height:80px!important;border-radius:10px!important;margin:10px!important;overflow:hidden!important}
           .card-compact p{max-width:100%!important;font-size:11px!important}
@@ -668,7 +670,7 @@ return (
       </header>
 
       {/* ═══ CONTENIDO PRINCIPAL ═══ */}
-      <div className="main-content" style={{ marginLeft: 200, paddingTop: 64 }}>
+      <div className="main-content" style={{ marginLeft: 200, paddingTop: 64, width: "calc(100% - 200px)", boxSizing: "border-box", minWidth: 0 }}>
         <div style={{ maxWidth: 1240, margin: "0 auto", padding: "28px 24px" }}>
           <div style={{ marginBottom: 28 }}>
             <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px" }} suppressHydrationWarning>{getGreeting()}, {user?.name?.split(" ")[0]} 👋</h1>
