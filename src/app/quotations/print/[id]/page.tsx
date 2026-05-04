@@ -48,22 +48,13 @@ export default function QuotationPrintPage() {
       <style>{`
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #fff; font-family: 'Segoe UI', Arial, sans-serif; color: #111; }
-        @media print { @page { size: letter; margin: 12mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .print-content { padding-top: 0 !important; } }
+        @media print { @page { size: A4; margin: 15mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .print-content { padding-top: 0 !important; } }
         table { width: 100%; border-collapse: collapse; }
-        @media (max-width: 768px) {
-          .print-toolbar { padding: 10px 12px !important; flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
-          .print-toolbar-actions { display: grid !important; grid-template-columns: 1fr 1fr; width: 100%; gap: 8px !important; }
-          .print-content { max-width: 100% !important; padding: 76px 12px 18px !important; }
-          .doc-header, .client-qr, .signatures { flex-direction: column !important; gap: 14px !important; }
-          .doc-header > div, .client-qr > div, .signatures > div { width: 100% !important; min-width: 0 !important; }
-          .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          .items-table { min-width: 620px; }
-        }
       `}</style>
 
-      <div className="no-print print-toolbar" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "12px 24px", background: "#111118", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100, gap: 10, flexWrap: "wrap" }}>
+      <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "12px 24px", background: "#111118", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100 }}>
         <span style={{ color: "#eee", fontSize: 14, fontWeight: 600 }}>{docIcon} {docTitle} — {q.code}</span>
-        <div className="print-toolbar-actions" style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10 }}>
           <button onClick={() => window.print()} style={{ padding: "8px 20px", background: `linear-gradient(135deg, ${color}, ${colorDark})`, border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨️ Imprimir</button>
           <button onClick={() => window.close()} style={{ padding: "8px 20px", background: "#1e1e2e", border: "1px solid #2e2e3e", borderRadius: 8, color: "#888", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✕ Cerrar</button>
         </div>
@@ -71,7 +62,7 @@ export default function QuotationPrintPage() {
 
       <div className="print-content" style={{ maxWidth: 780, margin: "0 auto", padding: "80px 40px 40px" }}>
         {/* HEADER */}
-        <div className="doc-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `3px solid ${color}`, paddingBottom: 20, marginBottom: 24, gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `3px solid ${color}`, paddingBottom: 20, marginBottom: 24 }}>
           <div><div style={{ display: "flex", alignItems: "center", gap: 10 }}>{settings.logo && <img src={settings.logo} alt="Logo" style={{ width: 36, height: 36, objectFit: "contain" }} />}<div><h1 style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>{settings.companyName}</h1><p style={{ fontSize: 11, color: "#666", marginTop: 4, textTransform: "uppercase" }}>{settings.slogan}</p></div></div>{(settings.phone || settings.email || settings.address) && (<div style={{ display: "flex", gap: 14, fontSize: 10, color: "#888", marginTop: 8, flexWrap: "wrap" }}>{settings.phone && <span>📞 {settings.phone}</span>}{settings.email && <span>✉️ {settings.email}</span>}{settings.address && <span>📍 {settings.address}</span>}</div>)}</div>
           <div style={{ textAlign: "right" }}><div style={{ display: "inline-block", padding: "6px 16px", background: color, borderRadius: 6, marginBottom: 4 }}><span style={{ fontSize: 16, fontWeight: 800, color: "#fff", fontFamily: "monospace", letterSpacing: "1px" }}>{q.code}</span></div><p style={{ fontSize: 11, color: "#666", marginTop: 4 }}>Fecha: {today}</p></div>
         </div>
@@ -83,7 +74,7 @@ export default function QuotationPrintPage() {
         </div>
 
         {/* CLIENTE + QR */}
-        <div className="client-qr" style={{ display: "flex", gap: 20, marginBottom: 24, alignItems: "stretch" }}>
+        <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
           <div style={{ flex: 1, border: "1px solid #e2e2e2", borderRadius: 8, overflow: "hidden" }}>
             <div style={{ background: "#f0f0ff", padding: "10px 16px", borderBottom: "1px solid #d5d5ef" }}><h3 style={{ fontSize: 12, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", margin: 0 }}>👤 Datos del Cliente</h3></div>
             <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
@@ -101,8 +92,8 @@ export default function QuotationPrintPage() {
         {/* TABLA */}
         <div style={{ marginBottom: 24, border: "1px solid #e2e2e2", borderRadius: 8, overflow: "hidden" }}>
           <div style={{ background: colorLight, padding: "10px 16px", borderBottom: `1px solid ${colorBorder}` }}><h3 style={{ fontSize: 12, fontWeight: 700, color: color, textTransform: "uppercase", margin: 0 }}>🛒 Detalle de Artículos y Equipos</h3></div>
-          <div className="table-scroll"><table className="items-table">
-          <thead><tr style={{ background: "#f9fafb" }}>
+          <table>
+            <thead><tr style={{ background: "#f9fafb" }}>
               <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>#</th>
               <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>Descripción</th>
               <th style={{ padding: "10px 16px", textAlign: "center", fontSize: 10, fontWeight: 700, color: "#666", textTransform: "uppercase", borderBottom: "2px solid #e5e7eb" }}>Cant.</th>
@@ -122,7 +113,7 @@ export default function QuotationPrintPage() {
               </tr>
               );
             })}</tbody>
-          </table></div>
+          </table>
           <div style={{ padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "2px solid #e5e7eb", background: "#f9fafb" }}>
             <span></span>
             <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, color: "#888", fontWeight: 600 }}>TOTAL</div><div style={{ fontSize: 24, fontWeight: 800, color: color }}>Bs. {total}</div></div>
@@ -140,7 +131,7 @@ export default function QuotationPrintPage() {
         )}
 
         {/* FIRMAS */}
-        <div className="signatures" style={{ display: "flex", gap: 40, marginBottom: 24, marginTop: 36 }}>
+        <div style={{ display: "flex", gap: 40, marginBottom: 24, marginTop: 36 }}>
           <div style={{ flex: 1, textAlign: "center" }}><div style={{ borderBottom: "2px solid #333", marginBottom: 8, height: 50 }} /><p style={{ fontSize: 12, fontWeight: 700 }}>Vendedor / Técnico</p><p style={{ fontSize: 10, color: "#888" }}>Nombre y Firma</p></div>
           <div style={{ flex: 1, textAlign: "center" }}><div style={{ borderBottom: "2px solid #333", marginBottom: 8, height: 50 }} /><p style={{ fontSize: 12, fontWeight: 700 }}>Cliente: {q.clientName || "________________"}</p><p style={{ fontSize: 10, color: "#888" }}>Firma de Conformidad</p></div>
         </div>

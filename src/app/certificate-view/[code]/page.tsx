@@ -71,7 +71,7 @@ export default function CertificateViewPage() {
       <PortalTracker />
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap');
-        @media print { @page { size: letter; margin: 12mm; } .no-print { display: none !important; } body { background: #fff !important; } .cert-wrapper { padding: 0 !important; } }
+        @media print { .no-print { display: none !important; } body { background: #fff !important; } .cert-wrapper { padding: 0 !important; } }
         @media (max-width: 768px) {
           .cert-wrapper { padding: 16px 12px !important; }
           .cert-wrapper > div { padding: 20px 16px !important; }

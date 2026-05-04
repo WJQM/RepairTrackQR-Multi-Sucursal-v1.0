@@ -77,7 +77,7 @@ export default function ClientsPage() {
 
       <AppSidebar user={user} />
 
-      <div className="main-content" style={{ marginLeft: 200, padding: "24px 20px 60px", width: "calc(100% - 200px)", boxSizing: "border-box", minWidth: 0 }}>
+      <div className="main-content" style={{ marginLeft: 200, padding: "24px 28px 60px" }}>
         <div style={{ marginBottom: 20 }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>👥 Clientes frecuentes</h1>
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>{clients.length} clientes registrados con historial de compras y reparaciones</p>

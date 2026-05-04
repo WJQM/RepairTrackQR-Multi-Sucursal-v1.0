@@ -81,7 +81,7 @@ export default function PrintPage() {
       </div>
 
       {/* QR + CLIENTE + EQUIPO */}
-      <div className="qr-client-row" style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
         <div style={{ textAlign: "center", padding: 6, border: "1px solid #e5e5e5", borderRadius: 6, background: "#fafafa", flexShrink: 0, alignSelf: "flex-start" }}>
           <div style={{ padding: 3, border: `2px solid ${accent}`, borderRadius: 5, display: "inline-block", background: "#fff" }}>
             {qrImg ? <img src={qrImg} alt="QR" width={55} height={55} style={{ display: "block" }} /> : <div style={{ width: 55, height: 55, background: "#f3f4f6" }} />}
@@ -112,7 +112,7 @@ export default function PrintPage() {
       </div>
 
       {/* DETALLES + ACCESORIOS (ancho completo) */}
-      <div className="details-row" style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
         <div style={{ flex: 1, border: "1px solid #e5e5e5", borderRadius: 5, overflow: "hidden" }}>
           <div style={{ background: "#faf5ff", padding: "3px 8px", borderBottom: "1px solid #e9d5ff" }}>
             <span style={{ fontSize: 7, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.5px" }}>📋 Detalles</span>
@@ -149,22 +149,11 @@ export default function PrintPage() {
       <style>{`
         @media print { @page { size: letter portrait; margin: 5mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .print-content { padding-top: 0 !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; } body { background: #fff; }
-        @media (max-width: 768px) {
-          .print-toolbar { padding: 10px 12px !important; flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
-          .print-toolbar-actions { display: grid !important; grid-template-columns: 1fr 1fr; width: 100%; gap: 8px !important; }
-          .print-content { max-width: 100% !important; padding: 72px 10px 16px !important; display: flex !important; flex-direction: column !important; gap: 12px !important; }
-          .receipt-container { width: 100% !important; flex: none !important; min-width: 0 !important; }
-          .receipt-divider { display: none !important; }
-          .qr-client-row { flex-direction: column !important; }
-          .qr-client-row > div { width: 100% !important; flex-shrink: unset !important; }
-          .details-row { flex-direction: column !important; }
-          .details-row > div { width: 100% !important; flex: none !important; }
-        }
       `}</style>
 
-      <div className="no-print print-toolbar" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "10px 24px", background: "#0a0a12", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100, gap: 10, flexWrap: "wrap" }}>
+      <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "10px 24px", background: "#0a0a12", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100 }}>
         <span style={{ color: "#eee", fontSize: 14, fontWeight: 600 }}>🖨️ Recepción x2 — {repair.code}</span>
-        <div className="print-toolbar-actions" style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10 }}>
           <button onClick={() => window.print()} style={{ padding: "8px 20px", background: "#6366f1", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨️ Imprimir</button>
           <button onClick={() => window.close()} style={{ padding: "8px 20px", background: "#1e1e2e", border: "1px solid #2e2e3e", borderRadius: 8, color: "#888", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✕ Cerrar</button>
         </div>
@@ -177,7 +166,7 @@ export default function PrintPage() {
         </div>
 
         {/* LÍNEA DE CORTE VERTICAL */}
-        <div className="receipt-divider" style={{ borderLeft: "2px dashed #ccc", margin: "12px 0", position: "relative", flexShrink: 0 }}>
+        <div style={{ borderLeft: "2px dashed #ccc", margin: "12px 0", position: "relative", flexShrink: 0 }}>
           <span style={{ position: "absolute", top: "50%", left: -20, transform: "translateY(-50%) rotate(-90deg)", background: "#fff", padding: "0 6px", fontSize: 7, color: "#bbb", whiteSpace: "nowrap" }}>✂ CORTAR</span>
         </div>
 

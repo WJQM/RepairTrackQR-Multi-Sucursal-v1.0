@@ -418,7 +418,7 @@ export default function QuotationsPage() {
         .sidebar-btn.active { background: rgba(99,102,241,0.12); color: #818cf8; }
         .sidebar-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
       
-        @media(max-width:1024px){
+        @media(max-width:768px){
           .sidebar-desktop{transform:translateX(-100%)!important}
           .sidebar-desktop.open{transform:translateX(0)!important}
           .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important}
@@ -426,7 +426,7 @@ export default function QuotationsPage() {
           .sidebar-overlay{display:block!important}
           .stats-grid{grid-template-columns:repeat(2,1fr)!important}
           .form-grid,.info-grid,.detail-grid{grid-template-columns:1fr!important}
-          .filter-wrap{flex-direction:column;align-items:stretch!important}.quotation-actions{margin-left:0!important;width:100%;flex-wrap:wrap}.quotation-actions > *{flex:1 1 220px}
+          .filter-wrap{flex-direction:column;align-items:stretch!important}
           .filter-btns{overflow-x:auto;flex-wrap:nowrap!important;padding-bottom:4px}
           .msg-layout{grid-template-columns:1fr!important}
           .hide-mobile{display:none!important}
@@ -445,10 +445,10 @@ export default function QuotationsPage() {
           {[{ label: "Cotizaciones", value: stats.totalQuotations, icon: "📋", color: "#f59e0b", gradient: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.02))" }, { label: "Notas de Venta", value: stats.totalSales, icon: "💰", color: "#a855f7", gradient: "linear-gradient(135deg, rgba(168,85,247,0.1), rgba(168,85,247,0.02))" }].map((s, i) => (<div key={i} style={{ padding: "20px 18px", background: s.gradient, borderRadius: 16, border: `1px solid ${s.color}15`, position: "relative", overflow: "hidden", animation: `fadeIn 0.4s ease-out ${i * 0.06}s both` }}><div style={{ position: "absolute", top: -10, right: -10, fontSize: 48, opacity: 0.06 }}>{s.icon}</div><div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: 600 }}>{s.label}</div><div style={{ fontSize: 28, fontWeight: 800, color: s.color, marginTop: 8 }}>{s.value}</div></div>))}
         </div>
 
-        <div className="filter-wrap" style={{ display: "flex", gap: 12, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 200, maxWidth: 340, display: "flex", alignItems: "center", gap: 10, background: "var(--bg-card)", borderRadius: 12, padding: "0 16px", border: "1px solid var(--border)" }}><span style={{ color: "var(--text-muted)", fontSize: 14 }}>🔍</span><input value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setQPage(1); }} placeholder="Buscar por cliente, ID..." style={{ flex: 1, border: "none", background: "none", padding: "12px 0", color: "var(--text-primary)", fontSize: 13, outline: "none" }} /></div>
           <div style={{ display: "flex", gap: 6 }}>{([{ key: "all", label: "Todas", icon: "📄", color: "#6366f1" }, { key: "quotation", label: "Cotizaciones", icon: "📋", color: "#f59e0b" }, { key: "sale", label: "Ventas", icon: "💰", color: "#a855f7" }] as const).map((f) => { const isActive = filterType === f.key; const count = f.key === "all" ? quotations.length : quotations.filter(q => q.type === f.key).length; return (<button key={f.key} onClick={() => { setFilterType(f.key); setQPage(1); }} style={{ padding: "8px 14px", borderRadius: 10, fontSize: 11, fontWeight: isActive ? 700 : 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, background: isActive ? `${f.color}15` : "var(--bg-card)", border: isActive ? `1.5px solid ${f.color}40` : "1.5px solid var(--border)", color: isActive ? f.color : "var(--text-muted)" }}><span style={{ fontSize: 13 }}>{f.icon}</span>{f.label}{count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 6, background: isActive ? `${f.color}20` : "var(--bg-tertiary)", color: isActive ? f.color : "var(--text-muted)" }}>{count}</span>}</button>); })}</div>
-          <div className="quotation-actions" style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
             <button onClick={() => openCreateModal("quotation")} style={{ padding: "10px 20px", background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "none", borderRadius: 12, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,158,11,0.3)" }}>📋 Nueva Cotización</button>
             <button onClick={() => openCreateModal("sale")} style={{ padding: "10px 20px", background: "linear-gradient(135deg, #a855f7, #7e22ce)", border: "none", borderRadius: 12, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 16px rgba(168,85,247,0.3)" }}>💰 Nueva Venta</button>
           </div>

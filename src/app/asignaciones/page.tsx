@@ -99,19 +99,16 @@ export default function AsignacionesPage() {
         @keyframes slideIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
         @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes fadeScale{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
-        .assignments-main{max-width:1240px;margin:0 auto;padding:28px 24px}
-        .asig-row{display:flex;align-items:center;gap:12px}
-        .asig-device{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .asig-client,.asig-status,.asig-next,.asig-arrow{flex-shrink:0}
-        .asig-detail-grid{display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:12px}
-        .asig-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .sb{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border-radius:10px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-muted);transition:.15s;text-align:left}
+        .sb:hover{background:rgba(99,102,241,.06);color:var(--text-secondary)}.sb.on{background:rgba(99,102,241,.12);color:#818cf8}
+        .sbi{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
         .sidebar-group-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 10px;border-radius:8px;border:none;font-size:9px;font-weight:700;cursor:pointer;background:transparent;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;transition:.15s;text-align:left}
         .sidebar-group-btn:hover{background:rgba(99,102,241,.04);color:var(--text-secondary)}
         .group-arrow{font-size:11px;transition:transform .2s;color:var(--text-muted)}
         .sidebar-group-btn.open .group-arrow{transform:rotate(180deg)}
         .sidebar-sub-list{overflow:hidden;max-height:0;transition:max-height .25s ease}
         .sidebar-sub-list.open{max-height:200px}
-        .sidebar-btn.sidebar-sub{padding-left:22px}
+        .sb.sub{padding-left:22px}
         .chip{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:600}
         .abtn{transition:.15s}.abtn:hover{filter:brightness(1.15);transform:scale(1.02)}
       
@@ -121,33 +118,13 @@ export default function AsignacionesPage() {
           .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important}
           .mobile-header{display:flex!important}
           .sidebar-overlay{display:block!important}
-          .stats-grid{grid-template-columns:repeat(2,1fr)!important}
-          .assignments-main{padding:24px 18px !important}
-          .asig-detail-grid,.asig-info-grid{grid-template-columns:1fr !important}
-          .asig-row{flex-wrap:wrap;align-items:flex-start !important}
-          .asig-device{flex-basis:calc(100% - 52px);white-space:normal !important;line-height:1.35}
-          .asig-client{margin-left:52px;font-size:10px !important;width:calc(100% - 52px)}
-          .asig-next{margin-left:52px;width:calc(100% - 52px)}
-          .asig-next button,.asig-next span{width:100%;justify-content:center;text-align:center}
-          .asig-status{margin-left:auto}
-          .asig-arrow{display:none}
+          [style*="grid-template-columns"]{grid-template-columns:1fr!important}
           .stats-grid{grid-template-columns:repeat(2,1fr)!important}
           .card-compact{flex-direction:column!important}
           .card-img{width:100%!important;min-height:160px!important;max-height:200px!important}
           .card-compact p{max-width:100%!important}
           .msg-layout{grid-template-columns:1fr!important}
           .filter-btns{overflow-x:auto;-webkit-overflow-scrolling:touch}
-        }
-        @media(max-width:768px){
-          .stats-grid{grid-template-columns:1fr!important}
-          .assignments-main{padding:20px 12px !important}
-          .chip{font-size:9px!important;padding:3px 7px!important}
-          .filter-btns{padding-bottom:4px}
-          .asig-row{gap:10px}
-          .asig-device{font-size:12px !important}
-          .asig-client{margin-left:0;width:100%}
-          .asig-next{margin-left:0;width:100%}
-          [style*="width: 160px; height: 110px"]{width:120px!important;height:84px!important}
         }
       `}</style>
 
@@ -156,7 +133,7 @@ export default function AsignacionesPage() {
       <AppSidebar user={user} />
 
       {/* CONTENIDO */}
-      <div className="assignments-main">
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "28px 24px" }}>
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.5px" }}>{greet()}, {user?.name?.split(" ")[0]} 👋</h1>
           <p style={{ color: "var(--text-muted)", fontSize: 13, marginTop: 3 }}>Tus órdenes de trabajo asignadas</p>
@@ -203,20 +180,20 @@ export default function AsignacionesPage() {
               return (
                 <div key={r.id} onClick={() => setExpanded(isOpen ? null : r.id)} style={{ background: "var(--bg-card)", borderRadius: 14, border: `1px solid ${isOpen ? s.color + "30" : "var(--border)"}`, cursor: "pointer", transition: ".25s", animation: `fadeIn .3s ease-out ${i * .03}s both`, overflow: "hidden" }}>
                   {/* FILA COMPACTA */}
-                  <div className="asig-row" style={{ padding: "10px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", gap: 12 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 10, overflow: "hidden", flexShrink: 0, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, border: `1px solid ${s.color}15` }}>
                       {imgs[0] ? <img src={imgs[0]} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : s.icon}
                     </div>
                     <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,.07)", padding: "2px 7px", borderRadius: 5, flexShrink: 0 }}>{r.code}</span>
-                    <span className="asig-device" style={{ fontSize: 13, fontWeight: 700 }}>{dev}</span>
-                    <span className="asig-client" style={{ fontSize: 11, color: "var(--text-muted)" }}>👤 {r.clientName || "—"}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dev}</span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>👤 {r.clientName || "—"}</span>
                     {next ? (
-                      <div className="asig-next"><button className="abtn" onClick={e => { e.stopPropagation(); advance(r.id, next); }} style={{ padding: "7px 14px", background: `linear-gradient(135deg,${STATUS[next].color},${STATUS[next].color}bb)`, border: "none", borderRadius: 8, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: `0 3px 12px ${STATUS[next].color}25`, whiteSpace: "nowrap", display: "flex", alignItems: "center" }}>{STATUS[next].icon} {STATUS[next].label} ▸</button></div>
+                      <button className="abtn" onClick={e => { e.stopPropagation(); advance(r.id, next); }} style={{ padding: "7px 14px", background: `linear-gradient(135deg,${STATUS[next].color},${STATUS[next].color}bb)`, border: "none", borderRadius: 8, color: "#fff", fontSize: 10, fontWeight: 700, cursor: "pointer", boxShadow: `0 3px 12px ${STATUS[next].color}25`, whiteSpace: "nowrap" }}>{STATUS[next].icon} {STATUS[next].label} ▸</button>
                     ) : r.status === "completed" ? (
-                      <div className="asig-next"><span style={{ padding: "7px 14px", background: "rgba(16,185,129,.07)", borderRadius: 8, border: "1px solid rgba(16,185,129,.15)", color: "#10b981", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center" }}>✅ Listo</span></div>
+                      <span style={{ padding: "7px 14px", background: "rgba(16,185,129,.07)", borderRadius: 8, border: "1px solid rgba(16,185,129,.15)", color: "#10b981", fontSize: 10, fontWeight: 700 }}>✅ Listo</span>
                     ) : null}
-                    <span className="asig-status" style={{ padding: "4px 10px", borderRadius: 8, fontSize: 10, fontWeight: 600, color: s.color, background: s.bg }}>{s.icon} {s.label}</span>
-                    <span className="asig-arrow" style={{ fontSize: 14, color: "var(--text-muted)", transform: isOpen ? "rotate(90deg)" : "none", transition: ".2s" }}>▸</span>
+                    <span style={{ padding: "4px 10px", borderRadius: 8, fontSize: 10, fontWeight: 600, color: s.color, background: s.bg, flexShrink: 0 }}>{s.icon} {s.label}</span>
+                    <span style={{ fontSize: 14, color: "var(--text-muted)", transform: isOpen ? "rotate(90deg)" : "none", transition: ".2s", flexShrink: 0 }}>▸</span>
                   </div>
                   {/* Barra mini */}
                   <div style={{ height: 2, background: "var(--bg-tertiary)" }}><div style={{ height: "100%", width: `${((ci + 1) / STEPS.length) * 100}%`, background: s.color, transition: "width .4s", borderRadius: 1 }} /></div>
@@ -228,11 +205,11 @@ export default function AsignacionesPage() {
                       {imgs.length > 0 && (<div style={{ display: "flex", gap: 8, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>{imgs.map((img, idx) => (<div key={idx} onClick={e => { e.stopPropagation(); setViewImg(img); }} style={{ width: 160, height: 110, borderRadius: 8, overflow: "hidden", cursor: "pointer", border: "1px solid var(--border)", flexShrink: 0, position: "relative" }}><img src={img} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /><span style={{ position: "absolute", bottom: 3, left: 5, fontSize: 8, color: "#fff", background: "rgba(0,0,0,0.5)", padding: "1px 5px", borderRadius: 3 }}>{idx + 1}/{imgs.length}</span></div>))}</div>)}
 
                       {/* ═══ LAYOUT: [CLIENTE+EQUIPO | SEGUIMIENTO] + [DETALLES] ═══ */}
-                      <div className="asig-detail-grid">
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, marginBottom: 12 }}>
                         {/* COLUMNA IZQUIERDA */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
                           {/* FILA: CLIENTE | EQUIPO */}
-                          <div className="asig-info-grid">
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                             {/* CLIENTE */}
                             <div style={{ background: "var(--bg-tertiary)", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(99,102,241,0.15)", borderLeft: "3px solid #6366f1" }}>
                               <div style={{ padding: "8px 14px", background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(99,102,241,0.03))", borderBottom: "1px solid rgba(99,102,241,0.1)", display: "flex", alignItems: "center", gap: 6 }}><span style={{ fontSize: 13 }}>👤</span><span style={{ fontSize: 10, fontWeight: 700, color: "#818cf8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Cliente</span></div>

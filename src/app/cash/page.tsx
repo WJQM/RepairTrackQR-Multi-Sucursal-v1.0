@@ -108,18 +108,13 @@ export default function CashPage() {
           .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important}
           .mobile-header{display:flex!important}
         }
-        @media(max-width:600px){
-          .cash-summary-grid{grid-template-columns:1fr!important}
-          .cash-header{flex-direction:column!important;align-items:flex-start!important;gap:10px!important}
-          .cash-header button{width:100%!important}
-        }
       `}</style>
 
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <div className="main-content" style={{ marginLeft: 200, padding: "24px 20px 60px", minWidth: 0, boxSizing: "border-box", width: "calc(100% - 200px)", position: "relative" }}>
-        <div className="cash-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12 }}>
+      <div className="main-content" style={{ marginLeft: 200, padding: "24px 28px 60px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>💵 Caja Chica</h1>
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Registro de ingresos y egresos de la sucursal</p>
@@ -132,7 +127,7 @@ export default function CashPage() {
         ) : (
           <>
             {/* Resúmenes */}
-            <div className="cash-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
               {[
                 { label: "Hoy", data: data?.today, color: "#6366f1", icon: "🌅" },
                 { label: "Este mes", data: data?.month, color: "#8b5cf6", icon: "📆" },

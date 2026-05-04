@@ -96,19 +96,14 @@ export default function PrintQRPage() {
           .sticker-wrap { padding: 0 !important; min-height: auto !important; }
           .sticker-card { border: 2px dashed #888 !important; box-shadow: none !important; page-break-inside: avoid; }
         }
-        @media (max-width: 768px) {
-          .print-toolbar { padding: 10px 12px !important; flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
-          .print-toolbar-actions { display: flex !important; flex-direction: column !important; width: 100%; gap: 8px !important; }
-          .sticker-wrap { padding: 84px 12px 20px !important; min-height: auto !important; }
-        }
       `}</style>
 
       {/* Top bar (not printed) */}
-      <div className="no-print print-toolbar" style={{ position: "sticky", top: 0, padding: "12px 24px", background: "#111118", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100, flexWrap: "wrap", gap: 8 }}>
+      <div className="no-print" style={{ position: "sticky", top: 0, padding: "12px 24px", background: "#111118", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100, flexWrap: "wrap", gap: 8 }}>
         <span style={{ color: "#eee", fontSize: 14, fontWeight: 600 }}>
           🏷️ Sticker QR · {displayCode}
         </span>
-        <div className="print-toolbar-actions" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           {/* Sticker size */}
           <div style={{ display: "flex", gap: 0, background: "#1e1e2e", border: "1px solid #333", borderRadius: 6, overflow: "hidden" }}>
             <button onClick={() => setStickerSize("small")} style={{ padding: "7px 12px", background: stickerSize === "small" ? cfg.color : "transparent", border: "none", color: stickerSize === "small" ? "#fff" : "#888", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>S</button>

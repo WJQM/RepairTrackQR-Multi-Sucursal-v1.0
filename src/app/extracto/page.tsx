@@ -178,7 +178,7 @@ export default function ExtractoPage() {
     const w = window.open("", "_blank");
     if (!w) return;
     w.document.write(`<!DOCTYPE html><html><head><title>Extracto — ${client.clientName}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111}@media print{@page{size:letter;margin:12mm}.no-print{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111}@media print{@page{size:A4;margin:12mm}.no-print{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
 </head><body>
   <div class="no-print" style="position:fixed;top:0;left:0;right:0;padding:12px 24px;background:#111118;display:flex;justify-content:space-between;align-items:center;z-index:100">
     <span style="color:#eee;font-size:14px;font-weight:600">📋 Extracto — ${client.clientName}</span>
@@ -243,7 +243,7 @@ export default function ExtractoPage() {
     const w = window.open("", "_blank");
     if (!w) return;
     w.document.write(`<!DOCTYPE html><html><head><title>Extracto General</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111}@media print{@page{size:letter landscape;margin:10mm}.no-print{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111}@media print{@page{size:A4 landscape;margin:10mm}.no-print{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
 </head><body>
   <div class="no-print" style="position:fixed;top:0;left:0;right:0;padding:12px 24px;background:#111118;display:flex;justify-content:space-between;align-items:center;z-index:100">
     <span style="color:#eee;font-size:14px;font-weight:600">📊 Extracto General</span>

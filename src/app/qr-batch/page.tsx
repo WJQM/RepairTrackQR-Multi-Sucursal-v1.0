@@ -129,7 +129,7 @@ export default function QrBatchPage() {
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <div className="main-content" style={{ marginLeft: 200, padding: "24px 20px 60px", width: "calc(100% - 200px)", boxSizing: "border-box", minWidth: 0 }}>
+      <div className="main-content" style={{ marginLeft: 200, padding: "24px 28px 60px" }}>
         <div style={{ marginBottom: 20 }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>🏷️ Imprimir QR múltiples</h1>
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Selecciona items y genera una hoja A4 con stickers QR listos para imprimir</p>

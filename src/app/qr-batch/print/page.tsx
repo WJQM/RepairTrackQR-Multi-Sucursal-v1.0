@@ -43,7 +43,7 @@ export default function QrBatchPrintPage() {
   return (
     <div style={{ background: "#fff", color: "#000", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
       <style>{`
-        @page { size: letter; margin: 8mm; }
+        @page { size: A4; margin: 8mm; }
         @media print {
           .no-print { display: none !important; }
           body { background: #fff !important; }

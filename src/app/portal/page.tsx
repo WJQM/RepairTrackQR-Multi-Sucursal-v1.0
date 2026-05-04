@@ -563,7 +563,7 @@ export default function PortalPage() {
         .cat-chip:hover { border-color: rgba(99,102,241,0.3); color: var(--text-secondary); }
         .cat-chip.active { background: rgba(99,102,241,0.12); color: #818cf8; border-color: rgba(99,102,241,0.3); }
         .skeleton { background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12px; }
-        @media(max-width:1024px) {
+        @media(max-width:768px) {
           .portal-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
           .portal-header-content { flex-direction: column; text-align: center; }
           .portal-header-content h1 { font-size: 22px !important; }
@@ -602,7 +602,7 @@ export default function PortalPage() {
 
 
       {/* Main content */}
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "32px 18px 56px", opacity: mounted ? 1 : 0, transition: "opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "40px 20px 60px", opacity: mounted ? 1 : 0, transition: "opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
 
         {/* Welcome Hero */}
         <div style={{ borderRadius: 24, border: "1px solid rgba(99,102,241,0.15)", background: "linear-gradient(135deg, rgba(99,102,241,0.07) 0%, rgba(139,92,246,0.04) 50%, rgba(16,185,129,0.04) 100%)", padding: "36px 32px", marginBottom: 28, position: "relative", overflow: "hidden" }}>

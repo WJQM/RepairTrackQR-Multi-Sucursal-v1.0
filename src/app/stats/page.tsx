@@ -109,18 +109,12 @@ export default function StatsPage() {
           .mobile-header{display:flex!important}
           .sidebar-overlay{display:block!important}
         }
-        @media(max-width:600px){
-          .stats-two-col{grid-template-columns:1fr!important}
-          .stats-wide-col{grid-template-columns:1fr!important}
-          .stats-inner-grid{grid-template-columns:1fr 1fr!important}
-          .stats-header{flex-direction:column!important;align-items:flex-start!important;gap:8px!important}
-        }
       `}</style>
 
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <div className="main-content" style={{ marginLeft: 200, padding: "24px 20px 60px", minWidth: 0, boxSizing: "border-box", width: "calc(100% - 200px)", position: "relative" }}>
+      <div className="main-content" style={{ marginLeft: 200, padding: "24px 28px 60px", maxWidth: "100%" }}>
         {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
           <div>
@@ -165,7 +159,7 @@ export default function StatsPage() {
             </div>
 
             {/* DESGLOSE */}
-            <div className="stats-two-col" style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="stat-card" style={{ borderTop: "3px solid #6366f1" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                   <span style={{ fontSize: 22 }}>🔧</span>
@@ -219,7 +213,7 @@ export default function StatsPage() {
             </div>
 
             {/* OTs POR ESTADO */}
-            <div className="stats-wide-col" style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
+            <div style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
               <div className="stat-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                   <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.3px" }}>📋 OTs por estado</h3>
@@ -320,7 +314,7 @@ export default function StatsPage() {
                 </div>
 
                 {/* Últimos 7 días + distribución horaria */}
-                <div className="stats-two-col" style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div className="stat-card">
                     <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 14 }}>📈 Últimos 7 días</h3>
                     {(() => {
@@ -364,7 +358,7 @@ export default function StatsPage() {
                 </div>
 
                 {/* Visitas por tipo + Top docs */}
-                <div className="stats-two-col" style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div className="stat-card">
                     <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: 14 }}>📑 Tipo de documento (30 días)</h3>
                     {data.traffic.byType.length === 0 ? (

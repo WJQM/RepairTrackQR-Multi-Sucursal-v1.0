@@ -268,14 +268,6 @@ export default function ScannerPage() {
           .card-img{width:100%!important;min-height:160px!important;max-height:200px!important}
           .card-compact p{max-width:100%!important}
           .msg-layout{grid-template-columns:1fr!important}
-          .form-grid{grid-template-columns:1fr!important}
-        }
-        @media(max-width:600px){
-          .form-grid{grid-template-columns:1fr!important}
-          .scanner-search-row{flex-direction:column!important}
-          .scanner-search-row input{width:100%!important}
-          .scanner-search-row button{width:100%!important}
-        }
           .filter-btns{overflow-x:auto;-webkit-overflow-scrolling:touch}
         }
       `}</style>
@@ -314,7 +306,7 @@ export default function ScannerPage() {
               <h3 style={{ fontSize: 16, fontWeight: 700 }}>Búsqueda Manual</h3>
             </div>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 18, lineHeight: 1.6 }}>Ingresa el código según el documento que necesitas consultar.</p>
-            <form onSubmit={handleManualSearch} className="scanner-search-row" style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+            <form onSubmit={handleManualSearch} style={{ display: "flex", gap: 8, marginBottom: 20 }}>
               <div style={{ flex: 1, display: "flex", alignItems: "center", background: "var(--bg-tertiary)", borderRadius: 12, border: "1px solid var(--border)", padding: "0 14px" }}>
                 <span style={{ color: "var(--text-muted)", fontSize: 13, marginRight: 8 }}>🔍</span>
                 <input value={manualCode} onChange={(e) => setManualCode(e.target.value)} placeholder="OT-1, CE-1, COT-1, NV-1, CL-1, EQ-1..." style={{ flex: 1, border: "none", background: "none", padding: "13px 0", color: "var(--text-primary)", fontSize: 14, outline: "none", fontFamily: "monospace", fontWeight: 600 }} />

@@ -129,7 +129,7 @@ export default function AdminSettingsPage() {
       <AppSidebar user={user} />
 
       {/* CONTENT */}
-      <main className="settings-main" style={{ marginLeft: 200, padding: "24px 20px", minHeight: "100vh", width: "calc(100% - 200px)", boxSizing: "border-box", minWidth: 0 }}>
+      <main className="settings-main" style={{ marginLeft: 200, padding: "32px 28px", minHeight: "100vh" }}>
         <div style={{ maxWidth: 700, margin: "0 auto" }}>
           <div style={{ marginBottom: 28 }}>
             <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.3px" }}>⚙️ Configuración de Empresa</h1>

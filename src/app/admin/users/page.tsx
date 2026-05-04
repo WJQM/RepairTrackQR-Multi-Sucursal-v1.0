@@ -150,10 +150,10 @@ export default function AdminUsersPage() {
         .sidebar-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
         .form-input{width:100%;padding:10px 14px;background:rgba(22,22,31,.8);border:1px solid var(--border);border-radius:10px;color:var(--text-primary);font-size:13px;outline:none}
         .form-input:focus{border-color:#6366f1}
-        @media(max-width:1024px){
+        @media(max-width:768px){
           .sidebar-desktop{transform:translateX(-100%)!important}
           .sidebar-desktop.open{transform:translateX(0)!important}
-          .main-content{margin-left:0!important;padding-top:56px!important}
+          .main-content{margin-left:0!important;padding-top:72px!important}
           .mobile-header{display:flex!important}
           .sidebar-overlay{display:block!important}
           .users-grid{grid-template-columns:1fr!important}
@@ -163,7 +163,7 @@ export default function AdminUsersPage() {
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <main className="main-content" style={{ marginLeft: 200, padding: "24px 20px", minHeight: "100vh", width: "calc(100% - 200px)", boxSizing: "border-box", minWidth: 0 }}>
+      <main className="main-content" style={{ marginLeft: 200, padding: "24px 28px", minHeight: "100vh" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800 }}>👥 Gestión de Usuarios</h1>

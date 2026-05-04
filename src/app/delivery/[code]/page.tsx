@@ -86,7 +86,7 @@ export default function DeliveryPage() {
       </div>
 
       {/* QR + CLIENTE + EQUIPO */}
-      <div className="qr-client-row" style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <div style={{ textAlign: "center", padding: 8, border: "1px solid #e5e5e5", borderRadius: 6, background: "#fafafa", flexShrink: 0, alignSelf: "flex-start" }}>
           <div style={{ padding: 5, border: `2px solid ${accent}`, borderRadius: 6, display: "inline-block", background: "#fff" }}>
             {qrImg ? <img src={qrImg} alt="QR" width={90} height={90} style={{ display: "block" }} /> : <div style={{ width: 90, height: 90, background: "#f3f4f6" }} />}
@@ -122,7 +122,7 @@ export default function DeliveryPage() {
         </div>
         <div style={{ padding: "5px 10px" }}>
           {checkedAcc.length > 0 ? (
-            <div className="acc-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
               {checkedAcc.map((a, i) => { const { name, detail } = parseAccWithDetail(a); return (
                 <div key={a} style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 5px", background: i % 2 === 0 ? "#ecfdf5" : "#fff", borderRadius: 3 }}>
                   <span style={{ width: 12, height: 12, borderRadius: 2, background: accent, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 7, fontWeight: 800, flexShrink: 0 }}>✓</span>
@@ -170,35 +170,23 @@ export default function DeliveryPage() {
       <style>{`
         @media print { @page { size: letter landscape; margin: 5mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } .print-content { padding-top: 0 !important; } }
         * { margin: 0; padding: 0; box-sizing: border-box; } body { background: #fff; }
-        @media (max-width: 700px) {
-          .double-copy { flex-direction: column !important; }
-          .copy-divider { display: none !important; }
-          .qr-client-row { flex-direction: column !important; }
-          .qr-client-row > div { width: 100% !important; flex-shrink: unset !important; }
-          .acc-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .print-toolbar { flex-direction: column !important; align-items: stretch !important; padding: 10px 12px !important; }
-          .print-toolbar-actions { flex-wrap: wrap !important; gap: 6px !important; }
-          .print-toolbar-actions button { flex: 1 1 auto !important; font-size: 11px !important; padding: 7px 10px !important; }
-        }
       `}</style>
 
-      <div className="no-print print-toolbar" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "10px 24px", background: "#0a0a12", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100, gap: 10, flexWrap: "wrap" }}>
+      <div className="no-print" style={{ position: "fixed", top: 0, left: 0, right: 0, padding: "10px 24px", background: "#0a0a12", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 100 }}>
         <span style={{ color: "#eee", fontSize: 14, fontWeight: 600 }}>📄 Comprobante x2 — {ceCode}</span>
-        <div className="print-toolbar-actions" style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10 }}>
           <button onClick={() => window.open(`/delivery/view/${repair.code}${branchParam ? `?branchId=${branchParam}` : ""}`, "_blank")} style={{ padding: "8px 20px", background: "#6366f1", border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📄 Ver Plana Completa</button>
           <button onClick={() => window.print()} style={{ padding: "8px 20px", background: accent, border: "none", borderRadius: 8, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>🖨️ Imprimir</button>
           <button onClick={() => window.close()} style={{ padding: "8px 20px", background: "#1e1e2e", border: "1px solid #2e2e3e", borderRadius: 8, color: "#888", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✕ Cerrar</button>
         </div>
       </div>
 
-      <div className="print-content" style={{ maxWidth: 1100, margin: "0 auto", paddingTop: 50, display: "flex" }} >
-        <div className="double-copy" style={{ display: "flex", width: "100%" }}>
+      <div className="print-content" style={{ maxWidth: 1100, margin: "0 auto", paddingTop: 50, display: "flex" }}>
         <div style={{ flex: 1 }}><Receipt label="COPIA TALLER" /></div>
-        <div className="copy-divider" style={{ borderLeft: "2px dashed #ccc", margin: "12px 0", position: "relative", flexShrink: 0 }}>
+        <div style={{ borderLeft: "2px dashed #ccc", margin: "12px 0", position: "relative", flexShrink: 0 }}>
           <span style={{ position: "absolute", top: "50%", left: -20, transform: "translateY(-50%) rotate(-90deg)", background: "#fff", padding: "0 6px", fontSize: 7, color: "#bbb", whiteSpace: "nowrap" }}>✂ CORTAR</span>
         </div>
         <div style={{ flex: 1 }}><Receipt label="COPIA CLIENTE" /></div>
-        </div>
       </div>
     </div>
   );

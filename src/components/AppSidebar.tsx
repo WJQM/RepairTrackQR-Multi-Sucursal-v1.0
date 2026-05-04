@@ -86,6 +86,7 @@ const GROUPS = [
     items: [
       { path: "/admin/users", label: "Usuarios", icon: "👥" },
       { path: "/admin/branches", label: "Sucursales", icon: "🏢" },
+      { path: "/admin/transfer", label: "Transferencias", icon: "🔄" },
       { path: "/admin/settings", label: "Configuración", icon: "⚙️" },
     ],
   },

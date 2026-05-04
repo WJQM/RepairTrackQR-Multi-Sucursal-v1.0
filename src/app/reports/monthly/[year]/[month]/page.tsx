@@ -41,7 +41,7 @@ export default function MonthlyReportPage() {
   return (
     <div style={{ background: "#fff", minHeight: "100vh", color: "#000", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
       <style>{`
-        @page { size: letter; margin: 12mm; }
+        @page { size: A4; margin: 14mm; }
         @media print { .no-print { display: none !important; } body { background: #fff; } }
         .report-table { width: 100%; border-collapse: collapse; font-size: 10px; }
         .report-table th { background: #f1f5f9; padding: 6px 8px; text-align: left; font-weight: 700; border: 1px solid #cbd5e1; }
