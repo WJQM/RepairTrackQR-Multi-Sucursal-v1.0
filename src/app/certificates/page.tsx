@@ -158,7 +158,7 @@ export default function CertificatesPage() {
       <AppSidebar user={user} />
 
       {/* Main content */}
-      <main className="main-content" style={{ marginLeft: 200, flex: 1, padding: "20px 24px", minHeight: "100vh" }}>
+      <main className="main-content" style={{ marginLeft: 200, flex: 1, padding: "20px 20px", minHeight: "100vh", width: "calc(100% - 200px)", boxSizing: "border-box", minWidth: 0 }}>
         {!preview ? (
           <>
             <div style={{ maxWidth: 700, margin: "0 auto" }}>

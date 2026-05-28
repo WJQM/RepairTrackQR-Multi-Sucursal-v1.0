@@ -102,10 +102,10 @@ export default function StatsPage() {
         .sidebar-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
         .stat-card { padding: 20px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); transition: all 0.2s; }
         .stat-card:hover { border-color: rgba(99,102,241,0.2); }
-        @media(max-width:1024px){
+        @media(max-width:600px){h1{font-size:20px!important;word-break:break-word!important}.page-subtitle{font-size:12px!important}} @media(max-width:1024px){
           .sidebar-desktop{transform:translateX(-100%)!important}
           .sidebar-desktop.open{transform:translateX(0)!important}
-          .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important}
+          .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important;width:100vw!important;max-width:100vw!important;overflow-x:hidden!important}
           .mobile-header{display:flex!important}
           .sidebar-overlay{display:block!important}
         }
@@ -120,11 +120,11 @@ export default function StatsPage() {
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <div className="main-content" style={{ marginLeft: 200, padding: "24px 28px 60px", maxWidth: "100%" }}>
+      <div className="main-content" style={{ marginLeft: 200, padding: "24px 20px 60px", minWidth: 0, boxSizing: "border-box", width: "calc(100% - 200px)", position: "relative" }}>
         {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>📈 Panel de estadísticas</h1>
+            <h1 style={{ fontSize: "clamp(18px, 4vw, 26px)", fontWeight: 800, marginBottom: 4 }}>📈 Panel de estadísticas</h1>
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Resumen de ingresos, órdenes y actividad</p>
           </div>
           <button onClick={load} disabled={loading} style={{ padding: "8px 16px", background: "var(--bg-tertiary)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, cursor: loading ? "wait" : "pointer" }}>{loading ? "Cargando..." : "🔄 Refrescar"}</button>

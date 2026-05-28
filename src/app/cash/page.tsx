@@ -102,10 +102,10 @@ export default function CashPage() {
         .sidebar-btn:hover { background: rgba(99,102,241,0.06); color: var(--text-secondary); }
         .sidebar-btn.active { background: rgba(99,102,241,0.12); color: #818cf8; }
         .sidebar-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
-        @media(max-width:1024px){
+        @media(max-width:600px){h1{font-size:20px!important;word-break:break-word!important}.page-subtitle{font-size:12px!important}} @media(max-width:1024px){
           .sidebar-desktop{transform:translateX(-100%)!important}
           .sidebar-desktop.open{transform:translateX(0)!important}
-          .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important}
+          .main-content{padding-left:0!important;margin-left:0!important;padding-top:56px!important;width:100vw!important;max-width:100vw!important;overflow-x:hidden!important}
           .mobile-header{display:flex!important}
         }
         @media(max-width:600px){
@@ -118,10 +118,10 @@ export default function CashPage() {
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <div className="main-content" style={{ marginLeft: 200, padding: "24px 28px 60px" }}>
+      <div className="main-content" style={{ marginLeft: 200, padding: "24px 20px 60px", minWidth: 0, boxSizing: "border-box", width: "calc(100% - 200px)", position: "relative" }}>
         <div className="cash-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12 }}>
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>💵 Caja Chica</h1>
+            <h1 style={{ fontSize: "clamp(18px, 4vw, 26px)", fontWeight: 800, marginBottom: 4 }}>💵 Caja Chica</h1>
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Registro de ingresos y egresos de la sucursal</p>
           </div>
           <button onClick={() => setShowForm(true)} style={{ padding: "10px 20px", background: "linear-gradient(135deg,#10b981,#059669)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>➕ Nuevo movimiento</button>

@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /portal
+Allow: /track
+Allow: /certificate-view
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /api

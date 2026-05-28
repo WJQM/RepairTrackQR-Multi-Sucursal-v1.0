@@ -100,6 +100,7 @@ export async function DELETE(request: Request) {
 
     // Delete related records / transfer ownership
     await prisma.notification.deleteMany({ where: { userId: id } });
+    await prisma.certificate.updateMany({ where: { userId: id }, data: { userId: inheritId } });
     await prisma.quotation.updateMany({ where: { userId: id }, data: { userId: inheritId } });
     await prisma.repair.updateMany({ where: { technicianId: id }, data: { technicianId: null } });
     await prisma.repair.updateMany({ where: { userId: id }, data: { userId: inheritId } });

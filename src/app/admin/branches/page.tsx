@@ -96,7 +96,7 @@ export default function AdminBranchesPage() {
       <AppSidebar user={user} />
 
       {/* MAIN */}
-      <main className="main-content" style={{ marginLeft: 200, padding: "24px 28px", minHeight: "100vh" }}>
+      <main className="main-content" style={{ marginLeft: 200, padding: "24px 20px", minHeight: "100vh", width: "calc(100% - 200px)", boxSizing: "border-box", minWidth: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800 }}>🏢 Gestión de Sucursales</h1>

@@ -1,0 +1,26 @@
+{
+  "name": "Portal RepairTrackQR",
+  "short_name": "Portal",
+  "description": "Consulta el estado de tu reparación",
+  "start_url": "/portal",
+  "scope": "/portal",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c0c12",
+  "theme_color": "#6366f1",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
